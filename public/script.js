@@ -13,8 +13,8 @@ let zoom = 1, rotate = 0, moveX = 0, moveY = 0;
 
 // Load Default Frame
 const frame = new Image();
-// Ensure 'public/frame.png' exists
-frame.src = "public/frame.png"; 
+// Ensure 'frame.png' exists
+frame.src = "frame.png"; 
 
 frame.onload = draw;
 
