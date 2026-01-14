@@ -1,2 +1,1 @@
-"# photo-frame-generator" 
-"# photo-frame-generator" 
+"# CG Sindhi Mahapanchayat Logo" 
