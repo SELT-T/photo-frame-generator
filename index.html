@@ -2,61 +2,78 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Premium Underwater Frame</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Photo Frame Generator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body>
-<video autoplay muted loop id="bg-video">
+
+  <video autoplay muted loop playsinline id="bg-video">
     <source src="video.mp4" type="video/mp4">
-</video>
+  </video>
   <div class="video-overlay"></div>
-  <div class="app">
-    <h1>Photo Frame Generator</h1>
-    <div class="btn-group">
-      <label class="btn primary">
-        📷 Select Photo
-        <input type="file" id="upload" accept="image/*" hidden>
-      </label>
-      
-      <label class="btn secondary">
-        🖼️ Change Frame
-        <input type="file" id="uploadFrame" accept="image/*" hidden>
-      </label>
-    </div>
 
-    <div class="name-pad-inputs">
-      <input type="text" id="nameText" placeholder="Name" maxlength="30" class="name-input">
-      <input type="text" id="padText" placeholder="Pad" maxlength="30" class="pad-input">
-    </div>
+  <div class="app-container">
+    <div class="app">
+      <h1>Photo Frame Generator</h1>
 
-    <div class="canvas-container">
-      <canvas id="canvas"></canvas>
-    </div>
-    <div class="controls">
-      <div class="control-item">
-        <span>Zoom</span>
-        <input type="range" id="zoom" min="0.5" max="3" step="0.01" value="1">
+      <div class="btn-group">
+        <label class="btn primary">
+          📷 Select Photo
+          <input type="file" id="upload" accept="image/*" hidden>
+        </label>
+        
+        <label class="btn secondary">
+          🖼️ Change Frame
+          <input type="file" id="uploadFrame" accept="image/*" hidden>
+        </label>
       </div>
-      <div class="control-item">
-        <span>Rotate</span>
-        <input type="range" id="rotate" min="-180" max="180" value="0">
+
+      <div class="name-pad-inputs">
+        <div class="input-wrapper">
+          <input type="text" id="nameText" placeholder="Enter Name (Ex. Rahul)" maxlength="25" class="name-input">
+        </div>
+        <div class="input-wrapper">
+          <input type="text" id="padText" placeholder="Enter Pad (Ex. President)" maxlength="30" class="pad-input">
+        </div>
       </div>
-      <div class="control-item">
-        <span>Move X</span>
-        <input type="range" id="moveX" min="-300" max="300" value="0">
+
+      <div class="canvas-wrapper">
+        <canvas id="canvas"></canvas>
       </div>
-      <div class="control-item">
-        <span>Move Y</span>
-        <input type="range" id="moveY" min="-300" max="300" value="0">
+
+      <div class="controls">
+        <div class="control-item">
+          <span>Zoom</span>
+          <input type="range" id="zoom" min="0.1" max="3" step="0.01" value="1">
+        </div>
+        <div class="control-item">
+          <span>Rotate</span>
+          <input type="range" id="rotate" min="-180" max="180" value="0">
+        </div>
+        <div class="control-item">
+          <span>Move X</span>
+          <input type="range" id="moveX" min="-540" max="540" value="0">
+        </div>
+        <div class="control-item">
+          <span>Move Y</span>
+          <input type="range" id="moveY" min="-540" max="540" value="0">
+        </div>
+        
+        <div class="control-item">
+            <span>Text Up/Down</span>
+            <input type="range" id="textY" min="-200" max="200" value="0">
+        </div>
       </div>
-    </div>
-    <div class="actions">
-      <button id="reset" class="btn warning">Reset</button>
-      <button id="download" class="btn success">✨ Download</button>
+
+      <div class="actions">
+        <button id="reset" class="btn warning">Reset</button>
+        <button id="download" class="btn success">✨ Download HD</button>
+      </div>
     </div>
   </div>
+
   <script src="script.js"></script>
 </body>
 </html>
