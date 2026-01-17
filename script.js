@@ -35,22 +35,12 @@ document.getElementById("uploadFrame").onchange = function(e) {
 };
 
 // 3. Name Input
-document.getElementById("nameText").onchange = function() {
-  nameText = this.value;
-  draw();
-};
-
 document.getElementById("nameText").oninput = function() {
   nameText = this.value;
   draw();
 };
 
 // 4. Pad Input
-document.getElementById("padText").onchange = function() {
-  padText = this.value;
-  draw();
-};
-
 document.getElementById("padText").oninput = function() {
   padText = this.value;
   draw();
@@ -96,7 +86,7 @@ document.getElementById("reset").onclick = function() {
   draw();
 };
 
-// 7. DRAW - BILKUL SAHI
+// 7. DRAW FUNCTION - PHOTO NAHI KATEGA
 function draw() {
   ctx.clearRect(0, 0, SIZE, SIZE);
   
@@ -104,25 +94,24 @@ function draw() {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, SIZE, SIZE);
   
-  // PHOTO - NAHI KATEGA, PURA DIKHEGA
+  // Draw Photo - NO CLIPPING, PURA DIKHEGA
   if (img) {
     ctx.save();
     
-    // Center me position karna
     ctx.translate(SIZE/2 + moveX, SIZE/2 + moveY);
     ctx.rotate(rotate * Math.PI / 180);
     
-    // Photo ko zoom ke saath display karna
-    let scaledWidth = img.width * zoom;
-    let scaledHeight = img.height * zoom;
+    // Original dimensions ke saath
+    let w = img.width * zoom;
+    let h = img.height * zoom;
     
-    // Photo ko center se start karna
-    ctx.drawImage(img, -scaledWidth/2, -scaledHeight/2, scaledWidth, scaledHeight);
+    // Photo draw without clipping
+    ctx.drawImage(img, -w/2, -h/2, w, h);
     
     ctx.restore();
   }
   
-  // NAME TEXT - NICHE LIKHA HOGA
+  // NAME TEXT
   if (nameText) {
     ctx.save();
     ctx.font = "bold 80px Arial";
@@ -131,14 +120,13 @@ function draw() {
     ctx.lineWidth = 4;
     ctx.strokeStyle = "#000000";
     
-    // Name ko photo ke niche likha
     ctx.strokeText(nameText, SIZE/2, SIZE - 150);
     ctx.fillText(nameText, SIZE/2, SIZE - 150);
     
     ctx.restore();
   }
   
-  // PAD TEXT - AUR NICHE
+  // PAD TEXT
   if (padText) {
     ctx.save();
     ctx.font = "bold 55px Arial";
@@ -147,14 +135,13 @@ function draw() {
     ctx.lineWidth = 3;
     ctx.strokeStyle = "#000000";
     
-    // Pad ko aur niche likha
     ctx.strokeText(padText, SIZE/2, SIZE - 55);
     ctx.fillText(padText, SIZE/2, SIZE - 55);
     
     ctx.restore();
   }
   
-  // Frame on top
+  // FRAME ON TOP
   if (frameImg) {
     ctx.drawImage(frameImg, 0, 0, SIZE, SIZE);
   }
