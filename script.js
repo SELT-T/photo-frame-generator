@@ -1,7 +1,7 @@
 /* ================= MAIN FRAME LOGIC ================= */
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
-// HIGH QUALITY SIZE
+
 const SIZE = 1080; 
 canvas.width = SIZE;
 canvas.height = SIZE;
@@ -9,7 +9,6 @@ canvas.height = SIZE;
 let img = null;
 let frameImg = null;
 let zoom = 1, rotate = 0, moveX = 0, moveY = 0;
-let currentFrame = "frame1";
 let nameText = "";
 let padText = "";
 
@@ -37,26 +36,13 @@ document.getElementById("uploadFrame").onchange = e => {
     }
 };
 
-// 3. Frame Selection
-document.querySelectorAll(".frame-option").forEach(el => {
-    el.addEventListener("click", function() {
-        document.querySelectorAll(".frame-option").forEach(e => e.classList.remove("active"));
-        this.classList.add("active");
-        currentFrame = this.dataset.frame;
-        
-        // Load frame based on selection
-        frameImg = new Image();
-        frameImg.src = `public/${currentFrame}.png`;
-        frameImg.onload = draw;
-    });
-});
-
-// 4. Text Input
+// 3. Name Text Input
 document.getElementById("nameText").addEventListener("input", function() {
     nameText = this.value;
     draw();
 });
 
+// 4. Pad Text Input
 document.getElementById("padText").addEventListener("input", function() {
     padText = this.value;
     draw();
@@ -79,7 +65,10 @@ function updateVal(id) {
 
 // 6. Reset Button
 document.getElementById("reset").onclick = () => {
-    zoom = 1; rotate = 0; moveX = 0; moveY = 0;
+    zoom = 1; 
+    rotate = 0; 
+    moveX = 0; 
+    moveY = 0;
     nameText = "";
     padText = "";
     
@@ -92,49 +81,51 @@ document.getElementById("reset").onclick = () => {
     draw();
 };
 
-// 7. DRAW FUNCTION - Photo nahi katega, sirf positioning
+// 7. DRAW FUNCTION - Photo pura dikhega, cut nahi hoga
 function draw() {
     ctx.clearRect(0, 0, SIZE, SIZE);
     
-    // Draw white background
+    // White background
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, SIZE, SIZE);
     
-    // Draw Photo WITHOUT CLIPPING - Full image dikhega
+    // Draw Photo WITHOUT CLIPPING - Full dikhega
     if (img) {
         ctx.save();
         ctx.translate(SIZE/2 + moveX, SIZE/2 + moveY);
         ctx.rotate(rotate * Math.PI / 180);
         
-        let w = SIZE * zoom;
-        let h = SIZE * zoom;
+        // Pura photo draw hoga, sirf positioning change hogi
+        let w = img.width * zoom;
+        let h = img.height * zoom;
         ctx.drawImage(img, -w/2, -h/2, w, h);
         
         ctx.restore();
     }
     
-    // Draw Text on Photo - Niche photo ke andar
+    // Draw Name Text - Photo ke andar niche
     if (nameText) {
         ctx.save();
-        ctx.font = "bold 80px Arial";
+        ctx.font = "bold 70px Arial";
+        ctx.fillStyle = "#ffffff";
+        ctx.textAlign = "center";
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 4;
+        ctx.strokeText(nameText, SIZE/2, SIZE - 150);
+        ctx.fillText(nameText, SIZE/2, SIZE - 150);
+        ctx.restore();
+    }
+    
+    // Draw Pad Text - Photo ke andar aur niche
+    if (padText) {
+        ctx.save();
+        ctx.font = "bold 50px Arial";
         ctx.fillStyle = "#ffffff";
         ctx.textAlign = "center";
         ctx.strokeStyle = "#000000";
         ctx.lineWidth = 3;
-        ctx.strokeText(nameText, SIZE/2, SIZE - 200);
-        ctx.fillText(nameText, SIZE/2, SIZE - 200);
-        ctx.restore();
-    }
-    
-    if (padText) {
-        ctx.save();
-        ctx.font = "60px Arial";
-        ctx.fillStyle = "#ffffff";
-        ctx.textAlign = "center";
-        ctx.strokeStyle = "#000000";
-        ctx.lineWidth = 2;
-        ctx.strokeText(padText, SIZE/2, SIZE - 80);
-        ctx.fillText(padText, SIZE/2, SIZE - 80);
+        ctx.strokeText(padText, SIZE/2, SIZE - 60);
+        ctx.fillText(padText, SIZE/2, SIZE - 60);
         ctx.restore();
     }
     
