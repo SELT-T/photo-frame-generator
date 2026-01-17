@@ -1,4 +1,3 @@
-/* ================= MAIN FRAME LOGIC ================= */
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
@@ -7,16 +6,13 @@ canvas.width = SIZE;
 canvas.height = SIZE;
 
 let img = null;
-let frameImg = null;
 let zoom = 1, rotate = 0, moveX = 0, moveY = 0;
-let nameText = "";
-let padText = "";
+let nameText = "", padText = "";
 
 // Load Default Frame
 const frame = new Image();
 frame.src = "public/frame.png";
 frame.onload = draw;
-frameImg = frame;
 
 // 1. Upload Photo
 document.getElementById("upload").onchange = e => {
@@ -30,25 +26,22 @@ document.getElementById("upload").onchange = e => {
 // 2. Upload Custom Frame
 document.getElementById("uploadFrame").onchange = e => {
     if (e.target.files && e.target.files[0]) {
-        frameImg = new Image();
-        frameImg.onload = draw;
-        frameImg.src = URL.createObjectURL(e.target.files[0]);
+        frame.src = URL.createObjectURL(e.target.files[0]);
     }
 };
 
-// 3. Name Text Input
+// 3. Name aur Pad Input
 document.getElementById("nameText").addEventListener("input", function() {
     nameText = this.value;
     draw();
 });
 
-// 4. Pad Text Input
 document.getElementById("padText").addEventListener("input", function() {
     padText = this.value;
     draw();
 });
 
-// 5. Sliders Logic
+// 4. Sliders
 function updateVal(id) {
     return parseFloat(document.getElementById(id).value);
 }
@@ -63,14 +56,10 @@ function updateVal(id) {
     });
 });
 
-// 6. Reset Button
+// 5. Reset
 document.getElementById("reset").onclick = () => {
-    zoom = 1; 
-    rotate = 0; 
-    moveX = 0; 
-    moveY = 0;
-    nameText = "";
-    padText = "";
+    zoom = 1; rotate = 0; moveX = 0; moveY = 0;
+    nameText = ""; padText = "";
     
     document.getElementById("zoom").value = 1;
     document.getElementById("rotate").value = 0;
@@ -81,61 +70,57 @@ document.getElementById("reset").onclick = () => {
     draw();
 };
 
-// 7. DRAW FUNCTION - Photo pura dikhega, cut nahi hoga
+// 6. DRAW FUNCTION - Photo nahi katega
 function draw() {
     ctx.clearRect(0, 0, SIZE, SIZE);
     
-    // White background
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, SIZE, SIZE);
-    
-    // Draw Photo WITHOUT CLIPPING - Full dikhega
+    // Draw photo with transform but NO CLIPPING
     if (img) {
         ctx.save();
         ctx.translate(SIZE/2 + moveX, SIZE/2 + moveY);
         ctx.rotate(rotate * Math.PI / 180);
         
-        // Pura photo draw hoga, sirf positioning change hogi
-        let w = img.width * zoom;
-        let h = img.height * zoom;
-        ctx.drawImage(img, -w/2, -h/2, w, h);
+        // Original image dimensions ko respect karte hue draw
+        let aspectRatio = img.width / img.height;
+        let displayHeight = SIZE * zoom;
+        let displayWidth = displayHeight * aspectRatio;
+        
+        ctx.drawImage(img, -displayWidth/2, -displayHeight/2, displayWidth, displayHeight);
         
         ctx.restore();
     }
     
-    // Draw Name Text - Photo ke andar niche
+    // Draw Name Text - Niche photo ke
     if (nameText) {
         ctx.save();
-        ctx.font = "bold 70px Arial";
-        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 90px Arial";
+        ctx.fillStyle = "#FFFFFF";
         ctx.textAlign = "center";
         ctx.strokeStyle = "#000000";
         ctx.lineWidth = 4;
-        ctx.strokeText(nameText, SIZE/2, SIZE - 150);
-        ctx.fillText(nameText, SIZE/2, SIZE - 150);
+        ctx.strokeText(nameText, SIZE/2, SIZE - 140);
+        ctx.fillText(nameText, SIZE/2, SIZE - 140);
         ctx.restore();
     }
     
-    // Draw Pad Text - Photo ke andar aur niche
+    // Draw Pad Text - Aur niche
     if (padText) {
         ctx.save();
-        ctx.font = "bold 50px Arial";
-        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 60px Arial";
+        ctx.fillStyle = "#FFFFFF";
         ctx.textAlign = "center";
         ctx.strokeStyle = "#000000";
         ctx.lineWidth = 3;
-        ctx.strokeText(padText, SIZE/2, SIZE - 60);
-        ctx.fillText(padText, SIZE/2, SIZE - 60);
+        ctx.strokeText(padText, SIZE/2, SIZE - 50);
+        ctx.fillText(padText, SIZE/2, SIZE - 50);
         ctx.restore();
     }
     
     // Draw Frame on Top
-    if (frameImg) {
-        ctx.drawImage(frameImg, 0, 0, SIZE, SIZE);
-    }
+    ctx.drawImage(frame, 0, 0, SIZE, SIZE);
 }
 
-// 8. Download Button
+// 7. Download
 document.getElementById("download").onclick = () => {
     const link = document.createElement("a");
     link.download = "photo-frame.png";
