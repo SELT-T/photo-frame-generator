@@ -14,6 +14,7 @@
   <div class="video-overlay"></div>
   <div class="app">
     <h1>Photo Frame Generator</h1>
+    
     <div class="btn-group">
       <label class="btn primary">
         📷 Select Photo
@@ -26,23 +27,15 @@
       </label>
     </div>
 
-    <div class="name-pad-section">
-      <div class="name-pad-row">
-        <div class="input-group">
-          <label>Name</label>
-          <input type="text" id="nameText" placeholder="Enter name...">
-        </div>
-        <div class="input-group">
-          <label>Pad</label>
-          <input type="text" id="padText" placeholder="Enter pad...">
-        </div>
-      </div>
+    <div class="text-inputs-box">
+      <input type="text" id="nameText" placeholder="Name" maxlength="30" class="text-input">
+      <input type="text" id="padText" placeholder="Pad" maxlength="30" class="text-input">
     </div>
 
     <div class="canvas-container">
       <canvas id="canvas"></canvas>
     </div>
-    
+
     <div class="controls">
       <div class="control-item">
         <span>Zoom</span>
@@ -61,12 +54,13 @@
         <input type="range" id="moveY" min="-300" max="300" value="0">
       </div>
     </div>
-    
+
     <div class="actions">
       <button id="reset" class="btn warning">Reset</button>
       <button id="download" class="btn success">✨ Download</button>
     </div>
   </div>
+
   <script src="script.js"></script>
 </body>
 </html>
