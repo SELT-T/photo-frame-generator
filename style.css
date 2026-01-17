@@ -12,20 +12,19 @@ body {
   justify-content: center;
   align-items: center;
   background: #000;
-  padding: 10px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   body {
     height: auto;
     min-height: 100vh;
     overflow-y: auto;
-    padding: 20px 10px;
+    padding: 20px 0;
     align-items: flex-start;
   }
 }
 
-/* --- VIDEO BACKGROUND --- */
+/* VIDEO BACKGROUND */
 #bg-video {
   position: fixed;
   right: 0;
@@ -40,17 +39,20 @@ body {
 
 .video-overlay {
   position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   background: rgba(0, 10, 40, 0.4);
   z-index: -1;
 }
 
-/* --- APP --- */
+/* APP */
 .app {
   width: 90%;
   max-width: 450px;
-  background: rgba(255, 255, 255, 0.1); 
-  backdrop-filter: blur(15px); 
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 24px;
@@ -62,14 +64,20 @@ body {
 }
 
 @keyframes floatUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .app {
     max-width: 100%;
-    width: 100%;
+    width: 95%;
     max-height: 95vh;
     overflow-y: auto;
     padding: 15px;
@@ -87,7 +95,7 @@ h1 {
   text-shadow: 0 0 20px rgba(102, 166, 255, 0.5);
 }
 
-/* --- BUTTONS --- */
+/* BUTTONS */
 .btn-group {
   display: flex;
   gap: 12px;
@@ -108,70 +116,71 @@ h1 {
   justify-content: center;
   align-items: center;
   gap: 6px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
-.primary { background: linear-gradient(135deg, #00c6ff, #0072ff); }
-.secondary { background: linear-gradient(135deg, #f093fb, #f5576c); }
-.warning { background: linear-gradient(135deg, #ff9a9e, #fecfef); color: #444; }
-.success { background: linear-gradient(135deg, #43e97b, #38f9d7); color: #004d40; }
+.primary {
+  background: linear-gradient(135deg, #00c6ff, #0072ff);
+}
 
-.btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
-.btn:active { transform: scale(0.95); }
+.secondary {
+  background: linear-gradient(135deg, #f093fb, #f5576c);
+}
 
-/* --- NAME PAD SECTION --- */
-.name-pad-section {
+.warning {
+  background: linear-gradient(135deg, #ff9a9e, #fecfef);
+  color: #444;
+}
+
+.success {
+  background: linear-gradient(135deg, #43e97b, #38f9d7);
+  color: #004d40;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+}
+
+.btn:active {
+  transform: scale(0.95);
+}
+
+/* NAME PAD INPUTS - BILKUL CLEAR */
+.text-inputs-box {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
   background: rgba(0, 0, 0, 0.3);
   padding: 12px;
   border-radius: 12px;
-  margin-bottom: 15px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.name-pad-row {
-  display: flex;
-  gap: 10px;
-}
-
-.input-group {
+.text-input {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.input-group label {
-  font-size: 11px;
-  color: #89f7fe;
-  margin-bottom: 5px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.input-group input {
-  width: 100%;
-  padding: 10px;
+  padding: 10px 12px;
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 8px;
   color: white;
-  font-size: 12px;
+  font-size: 13px;
   font-family: 'Poppins', sans-serif;
   outline: none;
   transition: 0.3s;
 }
 
-.input-group input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
+.text-input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
 }
 
-.input-group input:focus {
+.text-input:focus {
   background: rgba(255, 255, 255, 0.15);
   border-color: #89f7fe;
-  box-shadow: 0 0 10px rgba(137, 247, 254, 0.4);
+  box-shadow: 0 0 8px rgba(137, 247, 254, 0.4);
 }
 
-/* --- CANVAS --- */
+/* CANVAS */
 .canvas-container {
   display: flex;
   justify-content: center;
@@ -184,7 +193,7 @@ h1 {
   background: transparent;
   border-radius: 50%;
   box-shadow: 0 0 30px rgba(0, 198, 255, 0.3);
-  border: 2px solid rgba(255,255,255,0.1);
+  border: 2px solid rgba(255, 255, 255, 0.1);
 }
 
 @media (max-width: 768px) {
@@ -201,7 +210,7 @@ h1 {
   }
 }
 
-/* --- CONTROLS --- */
+/* CONTROLS */
 .controls {
   background: rgba(0, 0, 0, 0.3);
   padding: 15px;
@@ -218,12 +227,14 @@ h1 {
   color: #ccc;
 }
 
-.control-item:last-child { margin-bottom: 0; }
+.control-item:last-child {
+  margin-bottom: 0;
+}
 
 input[type="range"] {
   width: 65%;
   height: 4px;
-  background: rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 2px;
   appearance: none;
   outline: none;
@@ -237,7 +248,7 @@ input[type="range"]::-webkit-slider-thumb {
   background: #fff;
   border-radius: 50%;
   cursor: pointer;
-  box-shadow: 0 0 10px rgba(255,255,255,0.8);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
 }
 
 input[type="range"]::-moz-range-thumb {
@@ -247,12 +258,12 @@ input[type="range"]::-moz-range-thumb {
   border-radius: 50%;
   cursor: pointer;
   border: none;
-  box-shadow: 0 0 10px rgba(255,255,255,0.8);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
 }
 
-/* --- ACTIONS --- */
-.actions { 
-  display: flex; 
+/* ACTIONS */
+.actions {
+  display: flex;
   gap: 10px;
 }
 
