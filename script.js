@@ -6,115 +6,164 @@ canvas.width = SIZE;
 canvas.height = SIZE;
 
 let img = null;
+let frameImg = null;
 let zoom = 1, rotate = 0, moveX = 0, moveY = 0;
 let nameText = "", padText = "";
 
-const frames = [
-  "public/frame1.png",
-  "public/frame2.png",
-  "public/frame3.png"
-];
-let frameIndex = 0;
-
+// Load default frame
 const frame = new Image();
-frame.src = frames[frameIndex];
+frame.src = "public/frame.png";
 frame.onload = draw;
+frameImg = frame;
 
-// Upload photo
-upload.onchange = e => {
-  img = new Image();
-  img.onload = draw;
-  img.src = URL.createObjectURL(e.target.files[0]);
+// 1. Upload Photo
+document.getElementById("upload").onchange = function(e) {
+  if (e.target.files && e.target.files[0]) {
+    img = new Image();
+    img.src = URL.createObjectURL(e.target.files[0]);
+    img.onload = draw;
+  }
 };
 
-// Change frame
-nextFrame.onclick = () => {
-  frameIndex = (frameIndex + 1) % frames.length;
-  frame.src = frames[frameIndex];
+// 2. Upload Frame
+document.getElementById("uploadFrame").onchange = function(e) {
+  if (e.target.files && e.target.files[0]) {
+    frameImg = new Image();
+    frameImg.src = URL.createObjectURL(e.target.files[0]);
+    frameImg.onload = draw;
+  }
 };
 
-nameText.addEventListener("input", e => {
-  nameText = e.target.value;
+// 3. Name Input
+document.getElementById("nameText").onchange = function() {
+  nameText = this.value;
   draw();
-});
+};
 
-padText.addEventListener("input", e => {
-  padText = e.target.value;
+document.getElementById("nameText").oninput = function() {
+  nameText = this.value;
   draw();
-});
+};
 
-["zoom","rotate","moveX","moveY"].forEach(id=>{
-  document.getElementById(id).addEventListener("input",()=>{
-    zoom = +zoomEl.value;
-    rotate = +rotateEl.value;
-    moveX = +moveXEl.value;
-    moveY = +moveYEl.value;
-    draw();
-  });
-});
+// 4. Pad Input
+document.getElementById("padText").onchange = function() {
+  padText = this.value;
+  draw();
+};
 
-const zoomEl = zoom;
-const rotateEl = rotate;
-const moveXEl = moveX;
-const moveYEl = moveY;
+document.getElementById("padText").oninput = function() {
+  padText = this.value;
+  draw();
+};
 
-function draw(){
-  ctx.clearRect(0,0,SIZE,SIZE);
+// 5. Sliders
+document.getElementById("zoom").oninput = function() {
+  zoom = parseFloat(this.value);
+  draw();
+};
 
-  if(img){
-    const scale = Math.min(
-      SIZE / img.width,
-      SIZE / img.height
-    ) * zoom;
+document.getElementById("rotate").oninput = function() {
+  rotate = parseFloat(this.value);
+  draw();
+};
 
+document.getElementById("moveX").oninput = function() {
+  moveX = parseFloat(this.value);
+  draw();
+};
+
+document.getElementById("moveY").oninput = function() {
+  moveY = parseFloat(this.value);
+  draw();
+};
+
+// 6. Reset
+document.getElementById("reset").onclick = function() {
+  zoom = 1;
+  rotate = 0;
+  moveX = 0;
+  moveY = 0;
+  nameText = "";
+  padText = "";
+  
+  document.getElementById("zoom").value = 1;
+  document.getElementById("rotate").value = 0;
+  document.getElementById("moveX").value = 0;
+  document.getElementById("moveY").value = 0;
+  document.getElementById("nameText").value = "";
+  document.getElementById("padText").value = "";
+  
+  draw();
+};
+
+// 7. DRAW - BILKUL SAHI
+function draw() {
+  ctx.clearRect(0, 0, SIZE, SIZE);
+  
+  // White background
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, SIZE, SIZE);
+  
+  // PHOTO - NAHI KATEGA, PURA DIKHEGA
+  if (img) {
     ctx.save();
+    
+    // Center me position karna
     ctx.translate(SIZE/2 + moveX, SIZE/2 + moveY);
-    ctx.rotate(rotate * Math.PI/180);
-    ctx.drawImage(
-      img,
-      -img.width*scale/2,
-      -img.height*scale/2,
-      img.width*scale,
-      img.height*scale
-    );
+    ctx.rotate(rotate * Math.PI / 180);
+    
+    // Photo ko zoom ke saath display karna
+    let scaledWidth = img.width * zoom;
+    let scaledHeight = img.height * zoom;
+    
+    // Photo ko center se start karna
+    ctx.drawImage(img, -scaledWidth/2, -scaledHeight/2, scaledWidth, scaledHeight);
+    
     ctx.restore();
   }
-
-  if(nameText){
-    ctx.font="bold 90px Poppins";
-    ctx.fillStyle="#fff";
-    ctx.strokeStyle="#000";
-    ctx.lineWidth=4;
-    ctx.textAlign="center";
-    ctx.strokeText(nameText, SIZE/2, SIZE-160);
-    ctx.fillText(nameText, SIZE/2, SIZE-160);
+  
+  // NAME TEXT - NICHE LIKHA HOGA
+  if (nameText) {
+    ctx.save();
+    ctx.font = "bold 80px Arial";
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = "#000000";
+    
+    // Name ko photo ke niche likha
+    ctx.strokeText(nameText, SIZE/2, SIZE - 150);
+    ctx.fillText(nameText, SIZE/2, SIZE - 150);
+    
+    ctx.restore();
   }
-
-  if(padText){
-    ctx.font="bold 60px Poppins";
-    ctx.strokeText(padText, SIZE/2, SIZE-80);
-    ctx.fillText(padText, SIZE/2, SIZE-80);
+  
+  // PAD TEXT - AUR NICHE
+  if (padText) {
+    ctx.save();
+    ctx.font = "bold 55px Arial";
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#000000";
+    
+    // Pad ko aur niche likha
+    ctx.strokeText(padText, SIZE/2, SIZE - 55);
+    ctx.fillText(padText, SIZE/2, SIZE - 55);
+    
+    ctx.restore();
   }
-
-  ctx.drawImage(frame,0,0,SIZE,SIZE);
+  
+  // Frame on top
+  if (frameImg) {
+    ctx.drawImage(frameImg, 0, 0, SIZE, SIZE);
+  }
 }
 
-reset.onclick = ()=>{
-  zoom=1;rotate=0;moveX=0;moveY=0;
-  zoomEl.value=1;
-  rotateEl.value=0;
-  moveXEl.value=0;
-  moveYEl.value=0;
-  nameText.value="";
-  padText.value="";
-  nameText="";
-  padText="";
-  draw();
-};
-
-download.onclick=()=>{
-  const a=document.createElement("a");
-  a.download="photo-frame.png";
-  a.href=canvas.toDataURL("image/png");
-  a.click();
+// 8. Download
+document.getElementById("download").onclick = function() {
+  const link = document.createElement("a");
+  link.href = canvas.toDataURL("image/png");
+  link.download = "photo-frame.png";
+  link.click();
 };
