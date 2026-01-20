@@ -1,6 +1,5 @@
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
-
 const SIZE = 1080;
 canvas.width = SIZE;
 canvas.height = SIZE;
@@ -40,7 +39,7 @@ document.getElementById("nameText").oninput = function() {
   draw();
 };
 
-// 4. Pad Input
+// 4. Additional Text Input
 document.getElementById("padText").oninput = function() {
   padText = this.value;
   draw();
@@ -86,7 +85,7 @@ document.getElementById("reset").onclick = function() {
   draw();
 };
 
-// 7. DRAW FUNCTION - PHOTO NAHI KATEGA
+// 7. DRAW FUNCTION - Photo pura dikhega, cutting nahi hogi
 function draw() {
   ctx.clearRect(0, 0, SIZE, SIZE);
   
@@ -94,7 +93,7 @@ function draw() {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, SIZE, SIZE);
   
-  // Draw Photo - NO CLIPPING, PURA DIKHEGA
+  // Draw Photo WITHOUT CLIPPING - PURA DIKHEGA
   if (img) {
     ctx.save();
     
@@ -105,13 +104,13 @@ function draw() {
     let w = img.width * zoom;
     let h = img.height * zoom;
     
-    // Photo draw without clipping
+    // Photo draw without clipping - image pura aayega
     ctx.drawImage(img, -w/2, -h/2, w, h);
     
     ctx.restore();
   }
   
-  // NAME TEXT
+  // NAME TEXT - NICHE FRAME KE ANDAR
   if (nameText) {
     ctx.save();
     ctx.font = "bold 80px Arial";
@@ -120,13 +119,14 @@ function draw() {
     ctx.lineWidth = 4;
     ctx.strokeStyle = "#000000";
     
+    // Bottom ke andar likhe ga
     ctx.strokeText(nameText, SIZE/2, SIZE - 150);
     ctx.fillText(nameText, SIZE/2, SIZE - 150);
     
     ctx.restore();
   }
   
-  // PAD TEXT
+  // ADDITIONAL TEXT
   if (padText) {
     ctx.save();
     ctx.font = "bold 55px Arial";
