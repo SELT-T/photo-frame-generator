@@ -7,7 +7,7 @@ canvas.height = SIZE;
 let img = null;
 let frameImg = null;
 let zoom = 1, rotate = 0, moveX = 0, moveY = 0;
-let nameText = "", padText = "";
+let nameText = "";
 
 // Load default frame
 const frame = new Image();
@@ -39,13 +39,7 @@ document.getElementById("nameText").oninput = function() {
   draw();
 };
 
-// 4. Additional Text Input
-document.getElementById("padText").oninput = function() {
-  padText = this.value;
-  draw();
-};
-
-// 5. Sliders
+// 4. Sliders
 document.getElementById("zoom").oninput = function() {
   zoom = parseFloat(this.value);
   draw();
@@ -66,26 +60,24 @@ document.getElementById("moveY").oninput = function() {
   draw();
 };
 
-// 6. Reset
+// 5. Reset
 document.getElementById("reset").onclick = function() {
   zoom = 1;
   rotate = 0;
   moveX = 0;
   moveY = 0;
   nameText = "";
-  padText = "";
   
   document.getElementById("zoom").value = 1;
   document.getElementById("rotate").value = 0;
   document.getElementById("moveX").value = 0;
   document.getElementById("moveY").value = 0;
   document.getElementById("nameText").value = "";
-  document.getElementById("padText").value = "";
   
   draw();
 };
 
-// 7. DRAW FUNCTION - Photo pura dikhega, cutting nahi hogi
+// 6. MAIN DRAW FUNCTION - Photo pura dikhega, cutting nahi hogi
 function draw() {
   ctx.clearRect(0, 0, SIZE, SIZE);
   
@@ -93,24 +85,30 @@ function draw() {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, SIZE, SIZE);
   
-  // Draw Photo WITHOUT CLIPPING - PURA DIKHEGA
+  // Draw Photo - NO CLIPPING - PURA DIKHEGA
   if (img) {
     ctx.save();
     
-    ctx.translate(SIZE/2 + moveX, SIZE/2 + moveY);
-    ctx.rotate(rotate * Math.PI / 180);
+    // Move to center
+    ctx.translate(SIZE/2, SIZE/2);
     
-    // Original dimensions ke saath
-    let w = img.width * zoom;
-    let h = img.height * zoom;
+    // Apply transformations
+    ctx.rotate((rotate * Math.PI) / 180);
+    ctx.translate(moveX, moveY);
     
-    // Photo draw without clipping - image pura aayega
-    ctx.drawImage(img, -w/2, -h/2, w, h);
+    // Calculate dimensions
+    let imgWidth = img.width;
+    let imgHeight = img.height;
+    let scaledWidth = imgWidth * zoom;
+    let scaledHeight = imgHeight * zoom;
+    
+    // Draw image centered - pura image dikhe ga
+    ctx.drawImage(img, -scaledWidth/2, -scaledHeight/2, scaledWidth, scaledHeight);
     
     ctx.restore();
   }
   
-  // NAME TEXT - NICHE FRAME KE ANDAR
+  // NAME TEXT - NICHE KE ANDAR LIKHE GA
   if (nameText) {
     ctx.save();
     ctx.font = "bold 80px Arial";
@@ -119,24 +117,9 @@ function draw() {
     ctx.lineWidth = 4;
     ctx.strokeStyle = "#000000";
     
-    // Bottom ke andar likhe ga
-    ctx.strokeText(nameText, SIZE/2, SIZE - 150);
-    ctx.fillText(nameText, SIZE/2, SIZE - 150);
-    
-    ctx.restore();
-  }
-  
-  // ADDITIONAL TEXT
-  if (padText) {
-    ctx.save();
-    ctx.font = "bold 55px Arial";
-    ctx.fillStyle = "#ffffff";
-    ctx.textAlign = "center";
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "#000000";
-    
-    ctx.strokeText(padText, SIZE/2, SIZE - 55);
-    ctx.fillText(padText, SIZE/2, SIZE - 55);
+    // Bottom me likhe ga - niche side
+    ctx.strokeText(nameText, SIZE/2, SIZE - 120);
+    ctx.fillText(nameText, SIZE/2, SIZE - 120);
     
     ctx.restore();
   }
@@ -147,7 +130,7 @@ function draw() {
   }
 }
 
-// 8. Download
+// 7. Download
 document.getElementById("download").onclick = function() {
   const link = document.createElement("a");
   link.href = canvas.toDataURL("image/png");
