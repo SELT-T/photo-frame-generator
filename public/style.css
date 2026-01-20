@@ -51,8 +51,9 @@ body {
   color: white;
   animation: floatUp 1s ease-out;
   position: relative;
-  overflow-y: auto;
   max-height: 95vh;
+  display: flex;
+  flex-direction: column;
 }
 
 @keyframes floatUp {
@@ -79,12 +80,14 @@ h1 {
   align-items: center;
   justify-content: center;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 .btn-group {
   display: flex;
   gap: 15px;
   margin-bottom: 25px;
+  flex-shrink: 0;
 }
 
 .btn {
@@ -123,11 +126,6 @@ h1 {
   color: #004d40;
 }
 
-.info {
-  background: linear-gradient(135deg, #a8edea, #fed6e3);
-  color: #222;
-}
-
 .btn:hover {
   transform: translateY(-3px);
   filter: brightness(1.15);
@@ -140,6 +138,7 @@ h1 {
 
 .canvas-container {
   margin-bottom: 25px;
+  flex-shrink: 0;
 }
 
 .canvas-wrapper {
@@ -157,6 +156,7 @@ h1 {
   box-shadow: 0 0 40px rgba(0, 198, 255, 0.4);
   border: 2px solid rgba(255, 255, 255, 0.2);
   display: block;
+  object-fit: contain;
 }
 
 .canvas-overlay {
@@ -179,6 +179,8 @@ h1 {
   border-radius: 5px;
   background: rgba(0, 0, 0, 0.3);
   display: inline-block;
+  max-width: 90%;
+  word-break: break-word;
 }
 
 .photo-name {
@@ -202,6 +204,31 @@ h1 {
   align-items: center;
   gap: 8px;
   margin-top: 10px;
+}
+
+.controls-container {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 5px;
+  margin-bottom: 15px;
+}
+
+.controls-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.controls-container::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.controls-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+.controls-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .input-section {
@@ -277,11 +304,13 @@ h1 {
   margin-bottom: 0;
 }
 
-.control-item span {
+.control-item span:first-child {
   display: flex;
   align-items: center;
   gap: 8px;
   font-weight: 500;
+  min-width: 100px;
+  text-align: left;
 }
 
 .value-display {
@@ -397,6 +426,7 @@ input[type="color"] {
   display: flex;
   gap: 12px;
   margin-bottom: 20px;
+  flex-shrink: 0;
 }
 
 .actions .btn {
@@ -413,6 +443,7 @@ input[type="color"] {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .notification {
@@ -446,25 +477,6 @@ input[type="color"] {
 
 input[type="file"] {
   display: none;
-}
-
-/* Scrollbar styling */
-.app::-webkit-scrollbar {
-  width: 8px;
-}
-
-.app::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
-}
-
-.app::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 10px;
-}
-
-.app::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
 }
 
 /* Responsive design */
@@ -510,6 +522,7 @@ input[type="file"] {
   
   .value-display {
     align-self: flex-end;
+    margin-top: -25px;
   }
 }
 
@@ -534,6 +547,10 @@ input[type="file"] {
   .btn {
     padding: 12px;
     font-size: 13px;
+  }
+  
+  .controls-container {
+    padding-right: 3px;
   }
 }
 
