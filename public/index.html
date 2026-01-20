@@ -14,6 +14,7 @@
   <div class="video-overlay"></div>
   <div class="app">
     <h1>Photo Frame Generator</h1>
+    
     <div class="btn-group">
       <label class="btn primary">
         📷 Select Photo
@@ -25,25 +26,33 @@
         <input type="file" id="uploadFrame" accept="image/*" hidden>
       </label>
     </div>
-
-    <div class="frame-selector">
-      <label>Select Frame Style:</label>
-      <div class="frame-options">
-        <button class="frame-btn active" data-frame="default">Default</button>
-        <button class="frame-btn" data-frame="circle">Circle</button>
-        <button class="frame-btn" data-frame="gold">Gold</button>
-        <button class="frame-btn" data-frame="modern">Modern</button>
-      </div>
-    </div>
-
-    <div class="name-pad-inputs">
-      <input type="text" id="nameText" placeholder="Name" maxlength="30" class="name-input">
-      <input type="text" id="padText" placeholder="Pad" maxlength="30" class="pad-input">
-    </div>
-
+    
     <div class="canvas-container">
       <canvas id="canvas"></canvas>
     </div>
+    
+    <div class="input-section">
+      <div class="input-group">
+        <label>Name (Displayed on Photo)</label>
+        <input type="text" id="nameText" placeholder="Enter name...">
+      </div>
+      <div class="input-group">
+        <label>Pad/Title</label>
+        <input type="text" id="padText" placeholder="Enter pad...">
+      </div>
+    </div>
+    
+    <div class="text-position-controls">
+      <div class="control-item">
+        <span>Text X Position</span>
+        <input type="range" id="textX" min="-200" max="200" value="0">
+      </div>
+      <div class="control-item">
+        <span>Text Y Position</span>
+        <input type="range" id="textY" min="-200" max="200" value="0">
+      </div>
+    </div>
+    
     <div class="controls">
       <div class="control-item">
         <span>Zoom</span>
@@ -62,11 +71,17 @@
         <input type="range" id="moveY" min="-300" max="300" value="0">
       </div>
     </div>
+    
     <div class="actions">
       <button id="reset" class="btn warning">Reset</button>
       <button id="download" class="btn success">✨ Download</button>
     </div>
+    
+    <div class="hint">
+      <p>💡 Photo will not be cut - use controls to adjust position. Text appears on photo.</p>
+    </div>
   </div>
+  
   <script src="script.js"></script>
 </body>
 </html>
