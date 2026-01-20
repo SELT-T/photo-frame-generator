@@ -15,7 +15,7 @@ let img = null;
 let frameImg = null;
 let zoom = 1, rotate = 0, moveX = 0, moveY = 0;
 let nameText = "", padText = "";
-let textSize = 40, textColor = "#ffffff";
+let textSize = 40, textColor = "#ffffff", textX = 0, textY = 0;
 let borderRadius = 0, brightness = 1;
 
 // UI Elements
@@ -25,6 +25,10 @@ const textSizeSlider = document.getElementById("textSize");
 const textSizeValue = document.getElementById("textSizeValue");
 const textColorPicker = document.getElementById("textColor");
 const textColorPreview = document.getElementById("textColorPreview");
+const textXSlider = document.getElementById("textX");
+const textXValue = document.getElementById("textXValue");
+const textYSlider = document.getElementById("textY");
+const textYValue = document.getElementById("textYValue");
 const zoomSlider = document.getElementById("zoom");
 const zoomValue = document.getElementById("zoomValue");
 const rotateSlider = document.getElementById("rotate");
@@ -42,21 +46,41 @@ const advancedControls = document.getElementById("advancedControls");
 const notification = document.getElementById("notification");
 const notificationText = document.getElementById("notificationText");
 
-// Load default frame
-frameImg = new Image();
-frameImg.crossOrigin = "anonymous";
-frameImg.src = "frame.png"; // Default frame
-frameImg.onload = () => {
-  showNotification("Frame loaded successfully!");
-  draw();
-};
+// Create a default frame (transparent with border)
+function createDefaultFrame() {
+  const frameCanvas = document.createElement('canvas');
+  frameCanvas.width = SIZE;
+  frameCanvas.height = SIZE;
+  const frameCtx = frameCanvas.getContext('2d');
+  
+  // Transparent background
+  frameCtx.clearRect(0, 0, SIZE, SIZE);
+  
+  // Draw a simple decorative border
+  frameCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+  frameCtx.lineWidth = 20;
+  frameCtx.strokeRect(50, 50, SIZE - 100, SIZE - 100);
+  
+  // Create gradient border
+  const gradient = frameCtx.createLinearGradient(0, 0, SIZE, SIZE);
+  gradient.addColorStop(0, 'rgba(102, 166, 255, 0.5)');
+  gradient.addColorStop(0.5, 'rgba(137, 247, 254, 0.5)');
+  gradient.addColorStop(1, 'rgba(102, 166, 255, 0.5)');
+  
+  frameCtx.strokeStyle = gradient;
+  frameCtx.lineWidth = 15;
+  frameCtx.strokeRect(70, 70, SIZE - 140, SIZE - 140);
+  
+  // Convert canvas to image
+  frameImg = new Image();
+  frameImg.src = frameCanvas.toDataURL();
+  frameImg.onload = () => {
+    draw();
+  };
+}
 
-// If default frame fails, create a simple frame
-frameImg.onerror = () => {
-  console.log("Default frame not found, using generated frame");
-  frameImg = null;
-  draw();
-};
+// Load default frame
+createDefaultFrame();
 
 // 1. Upload Photo
 document.getElementById("upload").onchange = function(e) {
@@ -76,7 +100,7 @@ document.getElementById("upload").onchange = function(e) {
       // Auto-adjust zoom to fit photo properly (NO CUTTING)
       const scaleX = SIZE / img.width;
       const scaleY = SIZE / img.height;
-      zoom = Math.min(scaleX, scaleY) * 0.8; // 80% of fit to allow some margin
+      zoom = Math.min(scaleX, scaleY) * 0.9; // 90% of fit to allow some margin
       
       // Reset position
       moveX = 0;
@@ -119,6 +143,8 @@ document.getElementById("uploadFrame").onchange = function(e) {
     };
     frameImg.onerror = () => {
       showNotification("Error loading frame image", "error");
+      // Revert to default frame
+      createDefaultFrame();
     };
   }
 };
@@ -157,6 +183,33 @@ textColorPicker.oninput = function() {
   displayPad.style.color = textColor;
   draw();
 };
+
+textXSlider.oninput = function() {
+  textX = parseInt(this.value);
+  textXValue.textContent = textX;
+  updateTextPosition();
+  draw();
+};
+
+textYSlider.oninput = function() {
+  textY = parseInt(this.value);
+  textYValue.textContent = textY;
+  updateTextPosition();
+  draw();
+};
+
+// Update text position in overlay
+function updateTextPosition() {
+  const canvasRect = document.querySelector('.canvas-wrapper').getBoundingClientRect();
+  const canvasWidth = canvasRect.width;
+  
+  // Calculate position based on canvas size (350px display size)
+  const xOffset = (textX / 200) * (canvasWidth / 2);
+  const yOffset = (textY / 200) * 50;
+  
+  displayName.style.transform = `translateX(${xOffset}px) translateY(${yOffset}px)`;
+  displayPad.style.transform = `translateX(${xOffset}px) translateY(${yOffset}px)`;
+}
 
 // 6. Photo Controls
 zoomSlider.oninput = function() {
@@ -212,6 +265,8 @@ document.getElementById("reset").onclick = function() {
   moveY = 0;
   textSize = 40;
   textColor = "#ffffff";
+  textX = 0;
+  textY = 0;
   borderRadius = 0;
   brightness = 1;
   
@@ -228,6 +283,10 @@ document.getElementById("reset").onclick = function() {
   textSizeValue.textContent = textSize;
   textColorPicker.value = textColor;
   textColorPreview.style.backgroundColor = textColor;
+  textXSlider.value = textX;
+  textXValue.textContent = textX;
+  textYSlider.value = textY;
+  textYValue.textContent = textY;
   borderRadiusSlider.value = borderRadius;
   borderRadiusValue.textContent = `${borderRadius}%`;
   brightnessSlider.value = brightness;
@@ -241,16 +300,20 @@ document.getElementById("reset").onclick = function() {
   displayName.textContent = "";
   displayPad.textContent = "";
   
+  // Reset text position
+  updateTextPosition();
+  
   showNotification("All settings have been reset");
   draw();
 };
 
-// 9. DRAW FUNCTION - PHOTO WILL NOT BE CUT
+// 9. DRAW FUNCTION - Fixed: Text inside frame, no outside frame showing
 function draw() {
   // Clear canvas
   ctx.clearRect(0, 0, SIZE, SIZE);
   
   // Apply border radius by creating a clipping path
+  // This ensures nothing shows outside the frame
   if (borderRadius > 0) {
     const radius = (borderRadius / 100) * SIZE;
     ctx.beginPath();
@@ -264,6 +327,11 @@ function draw() {
     ctx.lineTo(0, radius);
     ctx.arcTo(0, 0, radius, 0, radius);
     ctx.closePath();
+    ctx.clip();
+  } else {
+    // Clip to canvas bounds (nothing outside)
+    ctx.beginPath();
+    ctx.rect(0, 0, SIZE, SIZE);
     ctx.clip();
   }
   
@@ -291,20 +359,12 @@ function draw() {
     const scaledHeight = img.height * zoom;
     
     // Draw photo centered at the transformation point
-    // This ensures the photo is not cut - it can extend beyond canvas bounds
     ctx.drawImage(img, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
     
     ctx.restore();
   }
   
-  // Draw Frame on top
-  if (frameImg) {
-    ctx.save();
-    ctx.drawImage(frameImg, 0, 0, SIZE, SIZE);
-    ctx.restore();
-  }
-  
-  // Draw text on canvas (for download)
+  // Draw text on canvas (for download) - INSIDE FRAME ONLY
   if (nameText || padText) {
     ctx.save();
     
@@ -313,55 +373,71 @@ function draw() {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     
+    // Calculate text position with offsets
+    const baseNameY = SIZE - 150;
+    const basePadY = SIZE - 80;
+    
+    const adjustedNameX = SIZE/2 + (textX * 2.5); // Scale for high-res canvas
+    const adjustedNameY = baseNameY + (textY * 2.5);
+    const adjustedPadX = SIZE/2 + (textX * 2.5);
+    const adjustedPadY = basePadY + (textY * 2.5);
+    
     // Draw name text
     if (nameText) {
-      ctx.font = `bold ${textSize}px 'Poppins', sans-serif`;
+      ctx.font = `bold ${textSize * 2}px 'Poppins', sans-serif`;
       ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
-      ctx.shadowBlur = 10;
-      ctx.shadowOffsetX = 2;
-      ctx.shadowOffsetY = 2;
+      ctx.shadowBlur = 20;
+      ctx.shadowOffsetX = 4;
+      ctx.shadowOffsetY = 4;
       
       // Draw text with background for better readability
       ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
       const nameMetrics = ctx.measureText(nameText);
-      const namePadding = 20;
+      const namePadding = 40;
       ctx.fillRect(
-        SIZE/2 - nameMetrics.width/2 - namePadding, 
-        SIZE - 150 - textSize/2 - 10, 
+        adjustedNameX - nameMetrics.width/2 - namePadding, 
+        adjustedNameY - textSize - 20, 
         nameMetrics.width + namePadding*2, 
-        textSize + 20
+        textSize * 2 + 40
       );
       
       // Draw actual text
       ctx.fillStyle = textColor;
-      ctx.fillText(nameText, SIZE/2, SIZE - 150);
+      ctx.fillText(nameText, adjustedNameX, adjustedNameY);
     }
     
     // Draw pad text
     if (padText) {
-      const padSize = textSize * 0.7;
+      const padSize = textSize * 1.4;
       ctx.font = `600 ${padSize}px 'Poppins', sans-serif`;
       ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
-      ctx.shadowBlur = 8;
-      ctx.shadowOffsetX = 2;
-      ctx.shadowOffsetY = 2;
+      ctx.shadowBlur = 15;
+      ctx.shadowOffsetX = 3;
+      ctx.shadowOffsetY = 3;
       
       // Draw text with background for better readability
       ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
       const padMetrics = ctx.measureText(padText);
-      const padPadding = 15;
+      const padPadding = 30;
       ctx.fillRect(
-        SIZE/2 - padMetrics.width/2 - padPadding, 
-        SIZE - 80 - padSize/2 - 8, 
+        adjustedPadX - padMetrics.width/2 - padPadding, 
+        adjustedPadY - padSize/2 - 16, 
         padMetrics.width + padPadding*2, 
-        padSize + 16
+        padSize + 32
       );
       
       // Draw actual text
       ctx.fillStyle = textColor;
-      ctx.fillText(padText, SIZE/2, SIZE - 80);
+      ctx.fillText(padText, adjustedPadX, adjustedPadY);
     }
     
+    ctx.restore();
+  }
+  
+  // Draw Frame on top - ONLY INSIDE THE CLIPPED AREA
+  if (frameImg) {
+    ctx.save();
+    ctx.drawImage(frameImg, 0, 0, SIZE, SIZE);
     ctx.restore();
   }
 }
@@ -385,7 +461,7 @@ document.getElementById("download").onclick = function() {
   // Scale everything for download
   const scale = downloadSize / SIZE;
   
-  // Apply border radius to download canvas
+  // Apply border radius to download canvas (clipping)
   if (borderRadius > 0) {
     const radius = (borderRadius / 100) * downloadSize;
     downloadCtx.beginPath();
@@ -399,6 +475,11 @@ document.getElementById("download").onclick = function() {
     downloadCtx.lineTo(0, radius);
     downloadCtx.arcTo(0, 0, radius, 0, radius);
     downloadCtx.closePath();
+    downloadCtx.clip();
+  } else {
+    // Clip to canvas bounds
+    downloadCtx.beginPath();
+    downloadCtx.rect(0, 0, downloadSize, downloadSize);
     downloadCtx.clip();
   }
   
@@ -431,69 +512,78 @@ document.getElementById("download").onclick = function() {
     downloadCtx.restore();
   }
   
-  // Draw frame on download canvas
-  if (frameImg) {
-    downloadCtx.drawImage(frameImg, 0, 0, downloadSize, downloadSize);
-  }
-  
-  // Draw text on download canvas
+  // Draw text on download canvas - INSIDE FRAME ONLY
   if (nameText || padText) {
     downloadCtx.save();
     downloadCtx.fillStyle = textColor;
     downloadCtx.textAlign = "center";
     downloadCtx.textBaseline = "middle";
     
+    // Calculate text position with offsets
+    const baseNameY = downloadSize - 300 * scale;
+    const basePadY = downloadSize - 160 * scale;
+    
+    const adjustedNameX = downloadSize/2 + (textX * 5 * scale);
+    const adjustedNameY = baseNameY + (textY * 5 * scale);
+    const adjustedPadX = downloadSize/2 + (textX * 5 * scale);
+    const adjustedPadY = basePadY + (textY * 5 * scale);
+    
     // Draw name text
     if (nameText) {
-      const scaledTextSize = textSize * scale;
+      const scaledTextSize = textSize * 2 * scale;
       downloadCtx.font = `bold ${scaledTextSize}px 'Poppins', sans-serif`;
       downloadCtx.shadowColor = "rgba(0, 0, 0, 0.8)";
-      downloadCtx.shadowBlur = 15 * scale;
-      downloadCtx.shadowOffsetX = 3 * scale;
-      downloadCtx.shadowOffsetY = 3 * scale;
+      downloadCtx.shadowBlur = 30 * scale;
+      downloadCtx.shadowOffsetX = 6 * scale;
+      downloadCtx.shadowOffsetY = 6 * scale;
       
       // Draw text with background for better readability
       downloadCtx.fillStyle = "rgba(0, 0, 0, 0.4)";
       const nameMetrics = downloadCtx.measureText(nameText);
-      const namePadding = 25 * scale;
+      const namePadding = 80 * scale;
       downloadCtx.fillRect(
-        downloadSize/2 - nameMetrics.width/2 - namePadding, 
-        downloadSize - 300 * scale - scaledTextSize/2 - 15 * scale, 
+        adjustedNameX - nameMetrics.width/2 - namePadding, 
+        adjustedNameY - scaledTextSize/2 - 40 * scale, 
         nameMetrics.width + namePadding*2, 
-        scaledTextSize + 30 * scale
+        scaledTextSize + 80 * scale
       );
       
       // Draw actual text
       downloadCtx.fillStyle = textColor;
-      downloadCtx.fillText(nameText, downloadSize/2, downloadSize - 300 * scale);
+      downloadCtx.fillText(nameText, adjustedNameX, adjustedNameY);
     }
     
     // Draw pad text
     if (padText) {
-      const scaledPadSize = textSize * 0.7 * scale;
+      const scaledPadSize = textSize * 1.4 * scale;
       downloadCtx.font = `600 ${scaledPadSize}px 'Poppins', sans-serif`;
       downloadCtx.shadowColor = "rgba(0, 0, 0, 0.8)";
-      downloadCtx.shadowBlur = 12 * scale;
-      downloadCtx.shadowOffsetX = 2 * scale;
-      downloadCtx.shadowOffsetY = 2 * scale;
+      downloadCtx.shadowBlur = 20 * scale;
+      downloadCtx.shadowOffsetX = 4 * scale;
+      downloadCtx.shadowOffsetY = 4 * scale;
       
       // Draw text with background for better readability
       downloadCtx.fillStyle = "rgba(0, 0, 0, 0.4)";
       const padMetrics = downloadCtx.measureText(padText);
-      const padPadding = 20 * scale;
+      const padPadding = 60 * scale;
       downloadCtx.fillRect(
-        downloadSize/2 - padMetrics.width/2 - padPadding, 
-        downloadSize - 160 * scale - scaledPadSize/2 - 12 * scale, 
+        adjustedPadX - padMetrics.width/2 - padPadding, 
+        adjustedPadY - scaledPadSize/2 - 30 * scale, 
         padMetrics.width + padPadding*2, 
-        scaledPadSize + 24 * scale
+        scaledPadSize + 60 * scale
       );
       
       // Draw actual text
       downloadCtx.fillStyle = textColor;
-      downloadCtx.fillText(padText, downloadSize/2, downloadSize - 160 * scale);
+      downloadCtx.fillText(padText, adjustedPadX, adjustedPadY);
     }
     
     downloadCtx.restore();
+  }
+  
+  // Draw frame on download canvas - ONLY INSIDE CLIPPED AREA
+  if (frameImg) {
+    downloadCtx.drawImage(frameImg, 0, 0, downloadSize, downloadSize);
   }
   
   // Create download link
@@ -507,35 +597,7 @@ document.getElementById("download").onclick = function() {
   showNotification("Image downloaded successfully!");
 };
 
-// 11. Share button
-document.getElementById("share").onclick = function() {
-  if (!img) {
-    showNotification("Please select a photo first", "error");
-    return;
-  }
-  
-  if (navigator.share) {
-    canvas.toBlob(function(blob) {
-      const file = new File([blob], 'photo-frame.png', { type: 'image/png' });
-      
-      navigator.share({
-        files: [file],
-        title: 'My Photo Frame',
-        text: 'Check out this photo frame I created!'
-      })
-      .then(() => showNotification("Image shared successfully!"))
-      .catch(error => {
-        if (error.name !== 'AbortError') {
-          showNotification("Sharing cancelled or failed", "error");
-        }
-      });
-    });
-  } else {
-    showNotification("Sharing is not supported in your browser", "error");
-  }
-};
-
-// 12. Notification function
+// 11. Notification function
 function showNotification(message, type = "success") {
   notificationText.textContent = message;
   notification.style.borderLeftColor = type === "error" ? "#f5576c" : "#43e97b";
@@ -546,9 +608,11 @@ function showNotification(message, type = "success") {
   }, 3000);
 }
 
-// 13. Initialize UI
+// 12. Initialize UI
 textColorPreview.style.backgroundColor = textColor;
 textSizeValue.textContent = textSize;
+textXValue.textContent = textX;
+textYValue.textContent = textY;
 zoomValue.textContent = zoom.toFixed(2);
 rotateValue.textContent = `${rotate}°`;
 moveXValue.textContent = moveX;
@@ -559,5 +623,5 @@ brightnessValue.textContent = brightness.toFixed(2);
 // Initial draw
 draw();
 
-// 14. Make sure photo is not cut on window resize
-window.addEventListener('resize', draw);
+// Update text position on resize
+window.addEventListener('resize', updateTextPosition);
