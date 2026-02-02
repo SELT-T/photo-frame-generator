@@ -1,14 +1,11 @@
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
+const canvasContainer = document.getElementById("canvasContainer");
 
 // Set canvas size (high resolution for quality)
 const SIZE = 1024;
 canvas.width = SIZE;
 canvas.height = SIZE;
-
-// Display canvas size
-canvas.style.width = "350px";
-canvas.style.height = "350px";
 
 // Variables
 let img = null;
@@ -17,6 +14,13 @@ let zoom = 1, rotate = 0, moveX = 0, moveY = 0;
 let nameText = "", padText = "";
 let textSize = 40, textColor = "#ffffff";
 let borderRadius = 0, brightness = 1;
+
+// Touch gesture variables
+let touchStartDistance = 0;
+let touchStartZoom = 1;
+let isDragging = false;
+let dragStartX = 0, dragStartY = 0;
+let dragStartMoveX = 0, dragStartMoveY = 0;
 
 // UI Elements
 const displayName = document.getElementById("displayName");
@@ -37,23 +41,35 @@ const borderRadiusSlider = document.getElementById("borderRadius");
 const borderRadiusValue = document.getElementById("borderRadiusValue");
 const brightnessSlider = document.getElementById("brightness");
 const brightnessValue = document.getElementById("brightnessValue");
-const toggleOptions = document.getElementById("toggleOptions");
-const advancedControls = document.getElementById("advancedControls");
 const notification = document.getElementById("notification");
 const notificationText = document.getElementById("notificationText");
+const touchHint = document.getElementById("touchHint");
+
+// Tab functionality
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const tabName = this.dataset.tab;
+    
+    // Remove active from all buttons and panes
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    
+    // Add active to clicked button and corresponding pane
+    this.classList.add('active');
+    document.getElementById(`${tabName}-tab`).classList.add('active');
+  });
+});
 
 // Load default frame
 frameImg = new Image();
 frameImg.crossOrigin = "anonymous";
-frameImg.src = "frame.png"; // Default frame
+frameImg.src = "frame.png";
 frameImg.onload = () => {
-  showNotification("Frame loaded successfully!");
+  showNotification("Frame loaded!");
   draw();
 };
 
-// If default frame fails, create a simple frame
 frameImg.onerror = () => {
-  console.log("Default frame not found, using generated frame");
   frameImg = null;
   draw();
 };
@@ -63,7 +79,7 @@ document.getElementById("upload").onchange = function(e) {
   if (e.target.files && e.target.files[0]) {
     const file = e.target.files[0];
     if (!file.type.match('image.*')) {
-      showNotification("Please select an image file", "error");
+      showNotification("Select an image file", "error");
       return;
     }
     
@@ -71,12 +87,12 @@ document.getElementById("upload").onchange = function(e) {
     img.crossOrigin = "anonymous";
     img.src = URL.createObjectURL(e.target.files[0]);
     img.onload = () => {
-      showNotification("Photo loaded successfully!");
+      showNotification("Photo loaded!");
       
-      // Auto-adjust zoom to fit photo properly (NO CUTTING)
+      // Auto-adjust zoom
       const scaleX = SIZE / img.width;
       const scaleY = SIZE / img.height;
-      zoom = Math.min(scaleX, scaleY) * 0.8; // 80% of fit to allow some margin
+      zoom = Math.min(scaleX, scaleY) * 0.8;
       
       // Reset position
       moveX = 0;
@@ -84,15 +100,7 @@ document.getElementById("upload").onchange = function(e) {
       rotate = 0;
       
       // Update UI
-      zoomSlider.value = zoom;
-      zoomValue.textContent = zoom.toFixed(2);
-      moveXSlider.value = moveX;
-      moveXValue.textContent = moveX;
-      moveYSlider.value = moveY;
-      moveYValue.textContent = moveY;
-      rotateSlider.value = rotate;
-      rotateValue.textContent = `${rotate}°`;
-      
+      updateAllSliders();
       draw();
     };
     img.onerror = () => {
@@ -106,7 +114,7 @@ document.getElementById("uploadFrame").onchange = function(e) {
   if (e.target.files && e.target.files[0]) {
     const file = e.target.files[0];
     if (!file.type.match('image.*')) {
-      showNotification("Please select an image file", "error");
+      showNotification("Select an image file", "error");
       return;
     }
     
@@ -114,11 +122,11 @@ document.getElementById("uploadFrame").onchange = function(e) {
     frameImg.crossOrigin = "anonymous";
     frameImg.src = URL.createObjectURL(e.target.files[0]);
     frameImg.onload = () => {
-      showNotification("Frame loaded successfully!");
+      showNotification("Frame loaded!");
       draw();
     };
     frameImg.onerror = () => {
-      showNotification("Error loading frame image", "error");
+      showNotification("Error loading frame", "error");
     };
   }
 };
@@ -128,7 +136,7 @@ document.getElementById("nameText").oninput = function() {
   nameText = this.value.trim();
   displayName.textContent = nameText;
   displayName.style.color = textColor;
-  displayName.style.fontSize = `${textSize}px`;
+  displayName.style.fontSize = `${Math.min(textSize * 0.9, 20)}px`;
   draw();
 };
 
@@ -137,7 +145,7 @@ document.getElementById("padText").oninput = function() {
   padText = this.value.trim();
   displayPad.textContent = padText;
   displayPad.style.color = textColor;
-  displayPad.style.fontSize = `${textSize * 0.7}px`;
+  displayPad.style.fontSize = `${Math.min(textSize * 0.6, 14)}px`;
   draw();
 };
 
@@ -145,8 +153,8 @@ document.getElementById("padText").oninput = function() {
 textSizeSlider.oninput = function() {
   textSize = parseInt(this.value);
   textSizeValue.textContent = textSize;
-  displayName.style.fontSize = `${textSize}px`;
-  displayPad.style.fontSize = `${textSize * 0.7}px`;
+  displayName.style.fontSize = `${Math.min(textSize * 0.9, 20)}px`;
+  displayPad.style.fontSize = `${Math.min(textSize * 0.6, 14)}px`;
   draw();
 };
 
@@ -196,14 +204,6 @@ brightnessSlider.oninput = function() {
   draw();
 };
 
-// Toggle advanced options
-toggleOptions.onclick = function() {
-  advancedControls.classList.toggle("show");
-  this.innerHTML = advancedControls.classList.contains("show") 
-    ? '<i class="fas fa-chevron-up"></i> Hide Advanced Options' 
-    : '<i class="fas fa-sliders-h"></i> Advanced Options';
-};
-
 // 8. Reset
 document.getElementById("reset").onclick = function() {
   zoom = 1;
@@ -215,7 +215,20 @@ document.getElementById("reset").onclick = function() {
   borderRadius = 0;
   brightness = 1;
   
-  // Reset UI
+  // Reset inputs
+  document.getElementById("nameText").value = "";
+  document.getElementById("padText").value = "";
+  nameText = "";
+  padText = "";
+  displayName.textContent = "";
+  displayPad.textContent = "";
+  
+  updateAllSliders();
+  showNotification("Reset complete!");
+  draw();
+};
+
+function updateAllSliders() {
   zoomSlider.value = zoom;
   zoomValue.textContent = zoom.toFixed(2);
   rotateSlider.value = rotate;
@@ -232,25 +245,130 @@ document.getElementById("reset").onclick = function() {
   borderRadiusValue.textContent = `${borderRadius}%`;
   brightnessSlider.value = brightness;
   brightnessValue.textContent = brightness.toFixed(2);
-  
-  // Reset text inputs
-  document.getElementById("nameText").value = "";
-  document.getElementById("padText").value = "";
-  nameText = "";
-  padText = "";
-  displayName.textContent = "";
-  displayPad.textContent = "";
-  
-  showNotification("All settings have been reset");
-  draw();
-};
+}
 
-// 9. DRAW FUNCTION - PHOTO WILL NOT BE CUT
+// TOUCH GESTURES
+// Pinch to zoom
+canvasContainer.addEventListener('touchmove', function(e) {
+  if (e.touches.length === 2) {
+    e.preventDefault();
+    
+    const touch1 = e.touches[0];
+    const touch2 = e.touches[1];
+    
+    const distance = Math.hypot(
+      touch1.clientX - touch2.clientX,
+      touch1.clientY - touch2.clientY
+    );
+    
+    if (touchStartDistance === 0) {
+      touchStartDistance = distance;
+      touchStartZoom = zoom;
+    } else {
+      const scale = distance / touchStartDistance;
+      zoom = Math.max(0.3, Math.min(5, touchStartZoom * scale));
+      zoomSlider.value = zoom;
+      zoomValue.textContent = zoom.toFixed(2);
+      draw();
+    }
+  }
+}, { passive: false });
+
+canvasContainer.addEventListener('touchend', function(e) {
+  if (e.touches.length < 2) {
+    touchStartDistance = 0;
+  }
+});
+
+// Drag to move
+canvasContainer.addEventListener('touchstart', function(e) {
+  if (e.touches.length === 1) {
+    isDragging = true;
+    dragStartX = e.touches[0].clientX;
+    dragStartY = e.touches[0].clientY;
+    dragStartMoveX = moveX;
+    dragStartMoveY = moveY;
+  }
+}, { passive: true });
+
+canvasContainer.addEventListener('touchmove', function(e) {
+  if (isDragging && e.touches.length === 1) {
+    const deltaX = e.touches[0].clientX - dragStartX;
+    const deltaY = e.touches[0].clientY - dragStartY;
+    
+    // Scale delta to canvas coordinate system
+    const scale = SIZE / canvasContainer.offsetWidth;
+    
+    moveX = Math.max(-500, Math.min(500, dragStartMoveX + deltaX * scale));
+    moveY = Math.max(-500, Math.min(500, dragStartMoveY + deltaY * scale));
+    
+    moveXSlider.value = moveX;
+    moveXValue.textContent = moveX;
+    moveYSlider.value = moveY;
+    moveYValue.textContent = moveY;
+    
+    draw();
+  }
+}, { passive: true });
+
+canvasContainer.addEventListener('touchend', function(e) {
+  isDragging = false;
+}, { passive: true });
+
+// Mouse support for desktop testing
+let mouseDown = false;
+let mouseStartX = 0, mouseStartY = 0;
+let mouseStartMoveX = 0, mouseStartMoveY = 0;
+
+canvasContainer.addEventListener('mousedown', function(e) {
+  mouseDown = true;
+  mouseStartX = e.clientX;
+  mouseStartY = e.clientY;
+  mouseStartMoveX = moveX;
+  mouseStartMoveY = moveY;
+});
+
+canvasContainer.addEventListener('mousemove', function(e) {
+  if (mouseDown && e.buttons === 1) {
+    const deltaX = e.clientX - mouseStartX;
+    const deltaY = e.clientY - mouseStartY;
+    
+    const scale = SIZE / canvasContainer.offsetWidth;
+    
+    moveX = Math.max(-500, Math.min(500, mouseStartMoveX + deltaX * scale));
+    moveY = Math.max(-500, Math.min(500, mouseStartMoveY + deltaY * scale));
+    
+    moveXSlider.value = moveX;
+    moveXValue.textContent = moveX;
+    moveYSlider.value = moveY;
+    moveYValue.textContent = moveY;
+    
+    draw();
+  }
+});
+
+canvasContainer.addEventListener('mouseup', function() {
+  mouseDown = false;
+});
+
+// Wheel zoom
+canvasContainer.addEventListener('wheel', function(e) {
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault();
+    
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    zoom = Math.max(0.3, Math.min(5, zoom + delta));
+    
+    zoomSlider.value = zoom;
+    zoomValue.textContent = zoom.toFixed(2);
+    draw();
+  }
+}, { passive: false });
+
+// 9. DRAW FUNCTION
 function draw() {
-  // Clear canvas
   ctx.clearRect(0, 0, SIZE, SIZE);
   
-  // Apply border radius by creating a clipping path
   if (borderRadius > 0) {
     const radius = (borderRadius / 100) * SIZE;
     ctx.beginPath();
@@ -267,53 +385,38 @@ function draw() {
     ctx.clip();
   }
   
-  // Draw background (transparent)
   ctx.fillStyle = "transparent";
   ctx.fillRect(0, 0, SIZE, SIZE);
   
-  // Draw Photo - NO CUTTING, FULL PHOTO VISIBLE
   if (img) {
     ctx.save();
-    
-    // Apply brightness filter
     ctx.filter = `brightness(${brightness})`;
     
-    // Calculate position to center the photo
     const centerX = SIZE / 2 + moveX;
     const centerY = SIZE / 2 + moveY;
     
-    // Move to center, rotate, then draw
     ctx.translate(centerX, centerY);
     ctx.rotate(rotate * Math.PI / 180);
     
-    // Calculate scaled dimensions
     const scaledWidth = img.width * zoom;
     const scaledHeight = img.height * zoom;
     
-    // Draw photo centered at the transformation point
-    // This ensures the photo is not cut - it can extend beyond canvas bounds
     ctx.drawImage(img, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
-    
     ctx.restore();
   }
   
-  // Draw Frame on top
   if (frameImg) {
     ctx.save();
     ctx.drawImage(frameImg, 0, 0, SIZE, SIZE);
     ctx.restore();
   }
   
-  // Draw text on canvas (for download)
   if (nameText || padText) {
     ctx.save();
-    
-    // Set text properties
     ctx.fillStyle = textColor;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     
-    // Draw name text
     if (nameText) {
       ctx.font = `bold ${textSize}px 'Poppins', sans-serif`;
       ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
@@ -321,7 +424,6 @@ function draw() {
       ctx.shadowOffsetX = 2;
       ctx.shadowOffsetY = 2;
       
-      // Draw text with background for better readability
       ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
       const nameMetrics = ctx.measureText(nameText);
       const namePadding = 20;
@@ -332,12 +434,10 @@ function draw() {
         textSize + 20
       );
       
-      // Draw actual text
       ctx.fillStyle = textColor;
       ctx.fillText(nameText, SIZE/2, SIZE - 150);
     }
     
-    // Draw pad text
     if (padText) {
       const padSize = textSize * 0.7;
       ctx.font = `600 ${padSize}px 'Poppins', sans-serif`;
@@ -346,7 +446,6 @@ function draw() {
       ctx.shadowOffsetX = 2;
       ctx.shadowOffsetY = 2;
       
-      // Draw text with background for better readability
       ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
       const padMetrics = ctx.measureText(padText);
       const padPadding = 15;
@@ -357,7 +456,6 @@ function draw() {
         padSize + 16
       );
       
-      // Draw actual text
       ctx.fillStyle = textColor;
       ctx.fillText(padText, SIZE/2, SIZE - 80);
     }
@@ -369,23 +467,19 @@ function draw() {
 // 10. Download
 document.getElementById("download").onclick = function() {
   if (!img) {
-    showNotification("Please select a photo first", "error");
+    showNotification("Select photo first", "error");
     return;
   }
   
-  // Create a temporary canvas for download (higher quality)
   const downloadCanvas = document.createElement("canvas");
   const downloadCtx = downloadCanvas.getContext("2d");
   
-  // Set download canvas size (high quality)
   const downloadSize = 2048;
   downloadCanvas.width = downloadSize;
   downloadCanvas.height = downloadSize;
   
-  // Scale everything for download
   const scale = downloadSize / SIZE;
   
-  // Apply border radius to download canvas
   if (borderRadius > 0) {
     const radius = (borderRadius / 100) * downloadSize;
     downloadCtx.beginPath();
@@ -402,18 +496,13 @@ document.getElementById("download").onclick = function() {
     downloadCtx.clip();
   }
   
-  // Draw background
   downloadCtx.fillStyle = "transparent";
   downloadCtx.fillRect(0, 0, downloadSize, downloadSize);
   
-  // Draw photo on download canvas
   if (img) {
     downloadCtx.save();
-    
-    // Apply brightness filter
     downloadCtx.filter = `brightness(${brightness})`;
     
-    // Scale transformations
     const scaledMoveX = moveX * scale;
     const scaledMoveY = moveY * scale;
     const centerX = downloadSize / 2 + scaledMoveX;
@@ -422,28 +511,23 @@ document.getElementById("download").onclick = function() {
     downloadCtx.translate(centerX, centerY);
     downloadCtx.rotate(rotate * Math.PI / 180);
     
-    // Calculate scaled dimensions
     const scaledWidth = img.width * zoom * scale;
     const scaledHeight = img.height * zoom * scale;
     
-    // Draw photo
     downloadCtx.drawImage(img, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
     downloadCtx.restore();
   }
   
-  // Draw frame on download canvas
   if (frameImg) {
     downloadCtx.drawImage(frameImg, 0, 0, downloadSize, downloadSize);
   }
   
-  // Draw text on download canvas
   if (nameText || padText) {
     downloadCtx.save();
     downloadCtx.fillStyle = textColor;
     downloadCtx.textAlign = "center";
     downloadCtx.textBaseline = "middle";
     
-    // Draw name text
     if (nameText) {
       const scaledTextSize = textSize * scale;
       downloadCtx.font = `bold ${scaledTextSize}px 'Poppins', sans-serif`;
@@ -452,7 +536,6 @@ document.getElementById("download").onclick = function() {
       downloadCtx.shadowOffsetX = 3 * scale;
       downloadCtx.shadowOffsetY = 3 * scale;
       
-      // Draw text with background for better readability
       downloadCtx.fillStyle = "rgba(0, 0, 0, 0.4)";
       const nameMetrics = downloadCtx.measureText(nameText);
       const namePadding = 25 * scale;
@@ -463,12 +546,10 @@ document.getElementById("download").onclick = function() {
         scaledTextSize + 30 * scale
       );
       
-      // Draw actual text
       downloadCtx.fillStyle = textColor;
       downloadCtx.fillText(nameText, downloadSize/2, downloadSize - 300 * scale);
     }
     
-    // Draw pad text
     if (padText) {
       const scaledPadSize = textSize * 0.7 * scale;
       downloadCtx.font = `600 ${scaledPadSize}px 'Poppins', sans-serif`;
@@ -477,7 +558,6 @@ document.getElementById("download").onclick = function() {
       downloadCtx.shadowOffsetX = 2 * scale;
       downloadCtx.shadowOffsetY = 2 * scale;
       
-      // Draw text with background for better readability
       downloadCtx.fillStyle = "rgba(0, 0, 0, 0.4)";
       const padMetrics = downloadCtx.measureText(padText);
       const padPadding = 20 * scale;
@@ -488,7 +568,6 @@ document.getElementById("download").onclick = function() {
         scaledPadSize + 24 * scale
       );
       
-      // Draw actual text
       downloadCtx.fillStyle = textColor;
       downloadCtx.fillText(padText, downloadSize/2, downloadSize - 160 * scale);
     }
@@ -496,7 +575,6 @@ document.getElementById("download").onclick = function() {
     downloadCtx.restore();
   }
   
-  // Create download link
   const link = document.createElement("a");
   link.href = downloadCanvas.toDataURL("image/png", 1.0);
   link.download = "photo-frame-" + Date.now() + ".png";
@@ -504,13 +582,13 @@ document.getElementById("download").onclick = function() {
   link.click();
   document.body.removeChild(link);
   
-  showNotification("Image downloaded successfully!");
+  showNotification("Downloaded!");
 };
 
-// 11. Share button
+// 11. Share
 document.getElementById("share").onclick = function() {
   if (!img) {
-    showNotification("Please select a photo first", "error");
+    showNotification("Select photo first", "error");
     return;
   }
   
@@ -521,21 +599,21 @@ document.getElementById("share").onclick = function() {
       navigator.share({
         files: [file],
         title: 'My Photo Frame',
-        text: 'Check out this photo frame I created!'
+        text: 'Check this out!'
       })
-      .then(() => showNotification("Image shared successfully!"))
+      .then(() => showNotification("Shared!"))
       .catch(error => {
         if (error.name !== 'AbortError') {
-          showNotification("Sharing cancelled or failed", "error");
+          showNotification("Share failed", "error");
         }
       });
     });
   } else {
-    showNotification("Sharing is not supported in your browser", "error");
+    showNotification("Share not supported", "error");
   }
 };
 
-// 12. Notification function
+// 12. Notification
 function showNotification(message, type = "success") {
   notificationText.textContent = message;
   notification.style.borderLeftColor = type === "error" ? "#f5576c" : "#43e97b";
@@ -543,21 +621,22 @@ function showNotification(message, type = "success") {
   
   setTimeout(() => {
     notification.style.display = "none";
-  }, 3000);
+  }, 2500);
 }
 
-// 13. Initialize UI
+// Initialize UI
 textColorPreview.style.backgroundColor = textColor;
 textSizeValue.textContent = textSize;
-zoomValue.textContent = zoom.toFixed(2);
-rotateValue.textContent = `${rotate}°`;
-moveXValue.textContent = moveX;
-moveYValue.textContent = moveY;
-borderRadiusValue.textContent = `${borderRadius}%`;
-brightnessValue.textContent = brightness.toFixed(2);
+updateAllSliders();
 
-// Initial draw
 draw();
 
-// 14. Make sure photo is not cut on window resize
+// Redraw on resize
 window.addEventListener('resize', draw);
+
+// Prevent default touch behavior
+document.addEventListener('touchmove', function(e) {
+  if (e.target.closest('.canvas-container')) {
+    e.preventDefault();
+  }
+}, { passive: false });
