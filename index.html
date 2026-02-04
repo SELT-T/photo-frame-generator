@@ -16,7 +16,7 @@
   
   <div class="app-container">
     <div class="mobile-header">
-      <h1><i class="fas fa-camera"></i> Photo Frame Generator</h1>
+      <h1><i class="fas fa-camera"></i> Frame Generator</h1>
     </div>
     
     <div class="app">
@@ -36,55 +36,42 @@
         <div class="canvas-container">
           <div class="canvas-wrapper">
             <canvas id="canvas"></canvas>
-            <div class="touch-gesture-hint">
-              <i class="fas fa-hand-point-up"></i> Use touch gestures on photo
+            <div class="touch-hint">
+              <i class="fas fa-hand-point-up"></i> Touch & drag
             </div>
-          </div>
-          <div class="canvas-hint">
-            <i class="fas fa-info-circle"></i> Drag, pinch & rotate photo directly
           </div>
         </div>
       </div>
       
-      <div class="control-mode-selector">
-        <div class="mode-btn active" data-mode="text"><i class="fas fa-font"></i> Text</div>
-        <div class="mode-btn" data-mode="photo"><i class="fas fa-image"></i> Photo</div>
-        <div class="mode-btn" data-mode="font"><i class="fas fa-text-height"></i> Font</div>
+      <div class="control-tabs">
+        <button class="tab-btn active" data-tab="text"><i class="fas fa-font"></i> Text</button>
+        <button class="tab-btn" data-tab="photo"><i class="fas fa-image"></i> Photo</button>
+        <button class="tab-btn" data-tab="font"><i class="fas fa-palette"></i> Style</button>
       </div>
       
       <div class="tab-content-wrapper">
         <!-- TEXT TAB -->
         <div class="tab-content active" id="text-tab">
           <div class="input-section">
-            <div class="input-group">
-              <label><i class="fas fa-user"></i> Name</label>
-              <input type="text" id="nameText" placeholder="Enter name...">
-            </div>
-            <div class="input-group">
-              <label><i class="fas fa-tag"></i> Title</label>
-              <input type="text" id="padText" placeholder="Enter title...">
-            </div>
+            <input type="text" id="nameText" placeholder="Enter name..." class="input-field">
+            <input type="text" id="padText" placeholder="Enter title..." class="input-field">
           </div>
           
-          <div class="text-position-controls">
-            <div class="control-header">
-              <h4><i class="fas fa-arrows-alt"></i> Text Position</h4>
-              <div class="control-subtitle">Drag text on canvas or use sliders</div>
-            </div>
+          <div class="control-section">
             <div class="slider-group">
               <div class="slider-item">
-                <div class="slider-label">
-                  <span>Horizontal (X)</span>
+                <label><i class="fas fa-arrows-alt-h"></i> Text X</label>
+                <div class="slider-container">
+                  <input type="range" id="textX" min="-200" max="200" value="0">
                   <span class="slider-value" id="textXValue">0</span>
                 </div>
-                <input type="range" id="textX" min="-200" max="200" value="0">
               </div>
               <div class="slider-item">
-                <div class="slider-label">
-                  <span>Vertical (Y)</span>
+                <label><i class="fas fa-arrows-alt-v"></i> Text Y</label>
+                <div class="slider-container">
+                  <input type="range" id="textY" min="-200" max="200" value="0">
                   <span class="slider-value" id="textYValue">0</span>
                 </div>
-                <input type="range" id="textY" min="-200" max="200" value="0">
               </div>
             </div>
           </div>
@@ -92,127 +79,116 @@
         
         <!-- PHOTO TAB -->
         <div class="tab-content" id="photo-tab">
-          <div class="control-header">
-            <h4><i class="fas fa-sliders-h"></i> Photo Controls</h4>
-            <div class="control-subtitle">Touch & drag photo directly on canvas</div>
-          </div>
-          <div class="slider-group">
-            <div class="slider-item">
-              <div class="slider-label">
-                <span><i class="fas fa-search"></i> Zoom</span>
-                <span class="slider-value" id="zoomValue">1.00</span>
+          <div class="control-section">
+            <div class="slider-group">
+              <div class="slider-item">
+                <label><i class="fas fa-search"></i> Zoom</label>
+                <div class="slider-container">
+                  <input type="range" id="zoom" min="0.5" max="3" step="0.01" value="1">
+                  <span class="slider-value" id="zoomValue">1.00</span>
+                </div>
               </div>
-              <input type="range" id="zoom" min="0.5" max="3" step="0.01" value="1">
-            </div>
-            <div class="slider-item">
-              <div class="slider-label">
-                <span><i class="fas fa-redo"></i> Rotate</span>
-                <span class="slider-value" id="rotateValue">0°</span>
+              <div class="slider-item">
+                <label><i class="fas fa-redo"></i> Rotate</label>
+                <div class="slider-container">
+                  <input type="range" id="rotate" min="-180" max="180" value="0">
+                  <span class="slider-value" id="rotateValue">0°</span>
+                </div>
               </div>
-              <input type="range" id="rotate" min="-180" max="180" value="0">
-            </div>
-            <div class="slider-item">
-              <div class="slider-label">
-                <span><i class="fas fa-arrows-alt-h"></i> Move X</span>
-                <span class="slider-value" id="moveXValue">0</span>
+              <div class="slider-item">
+                <label><i class="fas fa-arrows-alt-h"></i> Move X</label>
+                <div class="slider-container">
+                  <input type="range" id="moveX" min="-300" max="300" value="0">
+                  <span class="slider-value" id="moveXValue">0</span>
+                </div>
               </div>
-              <input type="range" id="moveX" min="-300" max="300" value="0">
-            </div>
-            <div class="slider-item">
-              <div class="slider-label">
-                <span><i class="fas fa-arrows-alt-v"></i> Move Y</span>
-                <span class="slider-value" id="moveYValue">0</span>
+              <div class="slider-item">
+                <label><i class="fas fa-arrows-alt-v"></i> Move Y</label>
+                <div class="slider-container">
+                  <input type="range" id="moveY" min="-300" max="300" value="0">
+                  <span class="slider-value" id="moveYValue">0</span>
+                </div>
               </div>
-              <input type="range" id="moveY" min="-300" max="300" value="0">
             </div>
           </div>
         </div>
         
         <!-- FONT TAB -->
         <div class="tab-content" id="font-tab">
-          <div class="control-header">
-            <h4><i class="fas fa-palette"></i> Font & Style</h4>
-            <div class="control-subtitle">Customize text appearance</div>
-          </div>
-          <div class="slider-group">
-            <div class="slider-item">
-              <div class="slider-label">
-                <span><i class="fas fa-text-height"></i> Font Size</span>
-                <span class="slider-value" id="fontSizeValue">40</span>
+          <div class="control-section">
+            <div class="slider-group">
+              <div class="slider-item">
+                <label><i class="fas fa-text-height"></i> Size</label>
+                <div class="slider-container">
+                  <input type="range" id="fontSize" min="20" max="100" value="40">
+                  <span class="slider-value" id="fontSizeValue">40</span>
+                </div>
               </div>
-              <input type="range" id="fontSize" min="20" max="100" value="40">
-            </div>
-            
-            <div class="slider-item">
-              <div class="slider-label">
-                <span><i class="fas fa-palette"></i> Font Color</span>
-                <div class="color-picker-wrapper">
+              
+              <div class="slider-item">
+                <label><i class="fas fa-palette"></i> Text Color</label>
+                <div class="color-container">
                   <input type="color" id="fontColor" value="#ffffff">
-                  <div class="color-preview" id="fontColorPreview"></div>
-                  <span class="color-value">#FFFFFF</span>
+                  <span class="color-value" id="fontColorValue">#FFF</span>
                 </div>
               </div>
-            </div>
-            
-            <div class="slider-item">
-              <div class="slider-label">
-                <span><i class="fas fa-border-all"></i> Border Color</span>
-                <div class="color-picker-wrapper">
+              
+              <div class="slider-item">
+                <label><i class="fas fa-border-all"></i> Border Color</label>
+                <div class="color-container">
                   <input type="color" id="borderColor" value="#000000">
-                  <div class="color-preview" id="borderColorPreview"></div>
-                  <span class="color-value">#000000</span>
+                  <span class="color-value" id="borderColorValue">#000</span>
                 </div>
               </div>
-            </div>
-            
-            <div class="slider-item">
-              <div class="slider-label">
-                <span><i class="fas fa-border-style"></i> Border Size</span>
-                <span class="slider-value" id="borderSizeValue">3px</span>
+              
+              <div class="slider-item">
+                <label><i class="fas fa-border-style"></i> Border Size</label>
+                <div class="slider-container">
+                  <input type="range" id="borderSize" min="0" max="10" value="3">
+                  <span class="slider-value" id="borderSizeValue">3</span>
+                </div>
               </div>
-              <input type="range" id="borderSize" min="0" max="10" value="3">
-            </div>
-            
-            <div class="select-group">
-              <label><i class="fas fa-font"></i> Font Family</label>
-              <select id="fontFamily" class="font-select">
-                <option value="Arial, sans-serif">Arial</option>
-                <option value="'Poppins', sans-serif" selected>Poppins</option>
-                <option value="'Times New Roman', serif">Times New Roman</option>
-                <option value="'Courier New', monospace">Courier New</option>
-                <option value="'Georgia', serif">Georgia</option>
-                <option value="'Verdana', sans-serif">Verdana</option>
-              </select>
-            </div>
-            
-            <div class="style-controls">
-              <label><i class="fas fa-bold"></i> Font Style</label>
-              <div class="style-buttons">
-                <button class="style-btn" data-style="bold" title="Bold">
-                  <i class="fas fa-bold"></i> Bold
-                </button>
-                <button class="style-btn" data-style="italic" title="Italic">
-                  <i class="fas fa-italic"></i> Italic
-                </button>
+              
+              <div class="select-item">
+                <label><i class="fas fa-font"></i> Font</label>
+                <select id="fontFamily" class="select-field">
+                  <option value="Arial, sans-serif">Arial</option>
+                  <option value="'Poppins', sans-serif" selected>Poppins</option>
+                  <option value="'Times New Roman', serif">Times New Roman</option>
+                  <option value="'Courier New', monospace">Courier New</option>
+                  <option value="'Georgia', serif">Georgia</option>
+                </select>
+              </div>
+              
+              <div class="style-item">
+                <label><i class="fas fa-bold"></i> Style</label>
+                <div class="style-buttons">
+                  <button class="style-btn" data-style="bold" title="Bold">
+                    <i class="fas fa-bold"></i>
+                  </button>
+                  <button class="style-btn" data-style="italic" title="Italic">
+                    <i class="fas fa-italic"></i>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
       
-      <div class="actions">
-        <button id="reset" class="btn warning">
-          <i class="fas fa-redo"></i> Reset All
+      <div class="action-buttons">
+        <button id="reset" class="action-btn reset-btn">
+          <i class="fas fa-redo"></i> Reset
         </button>
-        <button id="download" class="btn success">
-          <i class="fas fa-download"></i> Download
+        <button id="download" class="action-btn download-btn">
+          <i class="fas fa-download"></i> Save
         </button>
       </div>
     </div>
   </div>
   
   <div class="mobile-footer">
-    <p><i class="fas fa-lightbulb"></i> Tip: Touch & drag on canvas for direct control</p>
+    <p><i class="fas fa-hand-pointer"></i> Touch canvas to move photo/text</p>
   </div>
   
   <script src="script.js"></script>
