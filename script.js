@@ -1,14 +1,22 @@
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
+const touchOverlay = document.getElementById("touchOverlay");
+const canvasWrapper = document.getElementById("canvasWrapper");
 
-// Set canvas size (high resolution for quality)
+// Set canvas size
 const SIZE = 1024;
 canvas.width = SIZE;
 canvas.height = SIZE;
 
-// Display canvas size
-canvas.style.width = "350px";
-canvas.style.height = "350px";
+// Display canvas size - Mobile optimized
+const updateCanvasSize = () => {
+  const isMobile = window.innerWidth <= 768;
+  const size = isMobile ? Math.min(300, window.innerWidth - 40) : 350;
+  canvas.style.width = `${size}px`;
+  canvas.style.height = `${size}px`;
+  touchOverlay.style.width = `${size}px`;
+  touchOverlay.style.height = `${size}px`;
+};
 
 // Variables
 let img = null;
@@ -17,6 +25,12 @@ let zoom = 1, rotate = 0, moveX = 0, moveY = 0;
 let nameText = "", padText = "";
 let textSize = 40, textColor = "#ffffff";
 let borderRadius = 0, brightness = 1;
+
+// Touch Variables
+let isDragging = false;
+let lastTouchX = 0, lastTouchY = 0;
+let initialPinchDistance = 0;
+let initialZoom = 1;
 
 // UI Elements
 const displayName = document.getElementById("displayName");
@@ -42,16 +56,92 @@ const advancedControls = document.getElementById("advancedControls");
 const notification = document.getElementById("notification");
 const notificationText = document.getElementById("notificationText");
 
+// ========== TOUCH GESTURES ==========
+touchOverlay.addEventListener('touchstart', handleTouchStart, { passive: false });
+touchOverlay.addEventListener('touchmove', handleTouchMove, { passive: false });
+touchOverlay.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+function handleTouchStart(e) {
+  e.preventDefault();
+  if (!img) return;
+  
+  if (e.touches.length === 1) {
+    // Single touch - start dragging
+    isDragging = true;
+    lastTouchX = e.touches[0].clientX;
+    lastTouchY = e.touches[0].clientY;
+  } else if (e.touches.length === 2) {
+    // Two touches - start pinch zoom
+    isDragging = false;
+    initialPinchDistance = getTouchDistance(e.touches[0], e.touches[1]);
+    initialZoom = zoom;
+  }
+}
+
+function handleTouchMove(e) {
+  e.preventDefault();
+  if (!img) return;
+  
+  if (e.touches.length === 1 && isDragging) {
+    // Single touch move - drag photo
+    const currentX = e.touches[0].clientX;
+    const currentY = e.touches[0].clientY;
+    
+    const deltaX = currentX - lastTouchX;
+    const deltaY = currentY - lastTouchY;
+    
+    // Adjust sensitivity for mobile
+    const sensitivity = 0.8;
+    moveX += deltaX * sensitivity;
+    moveY += deltaY * sensitivity;
+    
+    // Update UI sliders
+    moveXSlider.value = moveX;
+    moveXValue.textContent = Math.round(moveX);
+    moveYSlider.value = moveY;
+    moveYValue.textContent = Math.round(moveY);
+    
+    lastTouchX = currentX;
+    lastTouchY = currentY;
+    draw();
+  } else if (e.touches.length === 2) {
+    // Two touches move - pinch zoom
+    const currentDistance = getTouchDistance(e.touches[0], e.touches[1]);
+    if (initialPinchDistance > 0) {
+      const scale = currentDistance / initialPinchDistance;
+      zoom = Math.max(0.3, Math.min(5, initialZoom * scale));
+      
+      // Update UI slider
+      zoomSlider.value = zoom;
+      zoomValue.textContent = zoom.toFixed(2);
+      draw();
+    }
+  }
+}
+
+function handleTouchEnd(e) {
+  e.preventDefault();
+  isDragging = false;
+  initialPinchDistance = 0;
+}
+
+function getTouchDistance(touch1, touch2) {
+  const dx = touch1.clientX - touch2.clientX;
+  const dy = touch1.clientY - touch2.clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+// ========== END TOUCH GESTURES ==========
+
 // Load default frame
 frameImg = new Image();
 frameImg.crossOrigin = "anonymous";
-frameImg.src = "frame.png"; // Default frame
+frameImg.src = "frame.png";
 frameImg.onload = () => {
   showNotification("Frame loaded successfully!");
   draw();
 };
 
-// If default frame fails, create a simple frame
 frameImg.onerror = () => {
   console.log("Default frame not found, using generated frame");
   frameImg = null;
@@ -71,12 +161,12 @@ document.getElementById("upload").onchange = function(e) {
     img.crossOrigin = "anonymous";
     img.src = URL.createObjectURL(e.target.files[0]);
     img.onload = () => {
-      showNotification("Photo loaded successfully!");
+      showNotification("Photo loaded! Use touch to move/zoom");
       
-      // Auto-adjust zoom to fit photo properly (NO CUTTING)
+      // Auto-adjust zoom to fit photo properly
       const scaleX = SIZE / img.width;
       const scaleY = SIZE / img.height;
-      zoom = Math.min(scaleX, scaleY) * 0.8; // 80% of fit to allow some margin
+      zoom = Math.min(scaleX, scaleY) * 0.8;
       
       // Reset position
       moveX = 0;
@@ -173,13 +263,13 @@ rotateSlider.oninput = function() {
 
 moveXSlider.oninput = function() {
   moveX = parseFloat(this.value);
-  moveXValue.textContent = moveX;
+  moveXValue.textContent = Math.round(moveX);
   draw();
 };
 
 moveYSlider.oninput = function() {
   moveY = parseFloat(this.value);
-  moveYValue.textContent = moveY;
+  moveYValue.textContent = Math.round(moveY);
   draw();
 };
 
@@ -245,12 +335,11 @@ document.getElementById("reset").onclick = function() {
   draw();
 };
 
-// 9. DRAW FUNCTION - PHOTO WILL NOT BE CUT
+// 9. DRAW FUNCTION
 function draw() {
-  // Clear canvas
   ctx.clearRect(0, 0, SIZE, SIZE);
   
-  // Apply border radius by creating a clipping path
+  // Apply border radius
   if (borderRadius > 0) {
     const radius = (borderRadius / 100) * SIZE;
     ctx.beginPath();
@@ -267,53 +356,35 @@ function draw() {
     ctx.clip();
   }
   
-  // Draw background (transparent)
   ctx.fillStyle = "transparent";
   ctx.fillRect(0, 0, SIZE, SIZE);
   
-  // Draw Photo - NO CUTTING, FULL PHOTO VISIBLE
+  // Draw Photo
   if (img) {
     ctx.save();
-    
-    // Apply brightness filter
     ctx.filter = `brightness(${brightness})`;
-    
-    // Calculate position to center the photo
     const centerX = SIZE / 2 + moveX;
     const centerY = SIZE / 2 + moveY;
-    
-    // Move to center, rotate, then draw
     ctx.translate(centerX, centerY);
     ctx.rotate(rotate * Math.PI / 180);
-    
-    // Calculate scaled dimensions
     const scaledWidth = img.width * zoom;
     const scaledHeight = img.height * zoom;
-    
-    // Draw photo centered at the transformation point
-    // This ensures the photo is not cut - it can extend beyond canvas bounds
     ctx.drawImage(img, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
-    
     ctx.restore();
   }
   
-  // Draw Frame on top
+  // Draw Frame
   if (frameImg) {
-    ctx.save();
     ctx.drawImage(frameImg, 0, 0, SIZE, SIZE);
-    ctx.restore();
   }
   
-  // Draw text on canvas (for download)
+  // Draw text
   if (nameText || padText) {
     ctx.save();
-    
-    // Set text properties
     ctx.fillStyle = textColor;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     
-    // Draw name text
     if (nameText) {
       ctx.font = `bold ${textSize}px 'Poppins', sans-serif`;
       ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
@@ -321,7 +392,6 @@ function draw() {
       ctx.shadowOffsetX = 2;
       ctx.shadowOffsetY = 2;
       
-      // Draw text with background for better readability
       ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
       const nameMetrics = ctx.measureText(nameText);
       const namePadding = 20;
@@ -332,12 +402,10 @@ function draw() {
         textSize + 20
       );
       
-      // Draw actual text
       ctx.fillStyle = textColor;
       ctx.fillText(nameText, SIZE/2, SIZE - 150);
     }
     
-    // Draw pad text
     if (padText) {
       const padSize = textSize * 0.7;
       ctx.font = `600 ${padSize}px 'Poppins', sans-serif`;
@@ -346,7 +414,6 @@ function draw() {
       ctx.shadowOffsetX = 2;
       ctx.shadowOffsetY = 2;
       
-      // Draw text with background for better readability
       ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
       const padMetrics = ctx.measureText(padText);
       const padPadding = 15;
@@ -357,7 +424,6 @@ function draw() {
         padSize + 16
       );
       
-      // Draw actual text
       ctx.fillStyle = textColor;
       ctx.fillText(padText, SIZE/2, SIZE - 80);
     }
@@ -373,19 +439,14 @@ document.getElementById("download").onclick = function() {
     return;
   }
   
-  // Create a temporary canvas for download (higher quality)
   const downloadCanvas = document.createElement("canvas");
   const downloadCtx = downloadCanvas.getContext("2d");
-  
-  // Set download canvas size (high quality)
   const downloadSize = 2048;
   downloadCanvas.width = downloadSize;
   downloadCanvas.height = downloadSize;
-  
-  // Scale everything for download
   const scale = downloadSize / SIZE;
   
-  // Apply border radius to download canvas
+  // Apply border radius
   if (borderRadius > 0) {
     const radius = (borderRadius / 100) * downloadSize;
     downloadCtx.beginPath();
@@ -402,48 +463,37 @@ document.getElementById("download").onclick = function() {
     downloadCtx.clip();
   }
   
-  // Draw background
   downloadCtx.fillStyle = "transparent";
   downloadCtx.fillRect(0, 0, downloadSize, downloadSize);
   
-  // Draw photo on download canvas
+  // Draw photo
   if (img) {
     downloadCtx.save();
-    
-    // Apply brightness filter
     downloadCtx.filter = `brightness(${brightness})`;
-    
-    // Scale transformations
     const scaledMoveX = moveX * scale;
     const scaledMoveY = moveY * scale;
     const centerX = downloadSize / 2 + scaledMoveX;
     const centerY = downloadSize / 2 + scaledMoveY;
-    
     downloadCtx.translate(centerX, centerY);
     downloadCtx.rotate(rotate * Math.PI / 180);
-    
-    // Calculate scaled dimensions
     const scaledWidth = img.width * zoom * scale;
     const scaledHeight = img.height * zoom * scale;
-    
-    // Draw photo
     downloadCtx.drawImage(img, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
     downloadCtx.restore();
   }
   
-  // Draw frame on download canvas
+  // Draw frame
   if (frameImg) {
     downloadCtx.drawImage(frameImg, 0, 0, downloadSize, downloadSize);
   }
   
-  // Draw text on download canvas
+  // Draw text
   if (nameText || padText) {
     downloadCtx.save();
     downloadCtx.fillStyle = textColor;
     downloadCtx.textAlign = "center";
     downloadCtx.textBaseline = "middle";
     
-    // Draw name text
     if (nameText) {
       const scaledTextSize = textSize * scale;
       downloadCtx.font = `bold ${scaledTextSize}px 'Poppins', sans-serif`;
@@ -452,7 +502,6 @@ document.getElementById("download").onclick = function() {
       downloadCtx.shadowOffsetX = 3 * scale;
       downloadCtx.shadowOffsetY = 3 * scale;
       
-      // Draw text with background for better readability
       downloadCtx.fillStyle = "rgba(0, 0, 0, 0.4)";
       const nameMetrics = downloadCtx.measureText(nameText);
       const namePadding = 25 * scale;
@@ -463,12 +512,10 @@ document.getElementById("download").onclick = function() {
         scaledTextSize + 30 * scale
       );
       
-      // Draw actual text
       downloadCtx.fillStyle = textColor;
       downloadCtx.fillText(nameText, downloadSize/2, downloadSize - 300 * scale);
     }
     
-    // Draw pad text
     if (padText) {
       const scaledPadSize = textSize * 0.7 * scale;
       downloadCtx.font = `600 ${scaledPadSize}px 'Poppins', sans-serif`;
@@ -477,7 +524,6 @@ document.getElementById("download").onclick = function() {
       downloadCtx.shadowOffsetX = 2 * scale;
       downloadCtx.shadowOffsetY = 2 * scale;
       
-      // Draw text with background for better readability
       downloadCtx.fillStyle = "rgba(0, 0, 0, 0.4)";
       const padMetrics = downloadCtx.measureText(padText);
       const padPadding = 20 * scale;
@@ -488,7 +534,6 @@ document.getElementById("download").onclick = function() {
         scaledPadSize + 24 * scale
       );
       
-      // Draw actual text
       downloadCtx.fillStyle = textColor;
       downloadCtx.fillText(padText, downloadSize/2, downloadSize - 160 * scale);
     }
@@ -496,7 +541,6 @@ document.getElementById("download").onclick = function() {
     downloadCtx.restore();
   }
   
-  // Create download link
   const link = document.createElement("a");
   link.href = downloadCanvas.toDataURL("image/png", 1.0);
   link.download = "photo-frame-" + Date.now() + ".png";
@@ -556,8 +600,10 @@ moveYValue.textContent = moveY;
 borderRadiusValue.textContent = `${borderRadius}%`;
 brightnessValue.textContent = brightness.toFixed(2);
 
-// Initial draw
+// Initial setup
+updateCanvasSize();
 draw();
 
-// 14. Make sure photo is not cut on window resize
-window.addEventListener('resize', draw);
+// 14. Update canvas size on resize
+window.addEventListener('resize', updateCanvasSize);
+window.addEventListener('orientationchange', updateCanvasSize);
