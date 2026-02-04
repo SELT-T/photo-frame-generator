@@ -4,7 +4,7 @@ const SIZE = 1024;
 canvas.width = SIZE;
 canvas.height = SIZE;
 
-// Variables with smooth animation support
+// Variables with touch support
 let img = null;
 let frameImg = null;
 let zoom = 1, rotate = 0, moveX = 0, moveY = 0;
@@ -20,10 +20,20 @@ let fontFamily = "'Poppins', sans-serif";
 let fontStyle = "normal";
 let fontWeight = "normal";
 
-// Animation variables
-let isDrawing = false;
-let animationFrame = null;
-let lastRenderTime = 0;
+// Touch gesture variables
+let isDraggingPhoto = false;
+let isDraggingText = false;
+let touchStartX = 0;
+let touchStartY = 0;
+let initialMoveX = 0;
+let initialMoveY = 0;
+let initialTextX = 0;
+let initialTextY = 0;
+let initialZoom = 1;
+let initialDistance = 0;
+let initialRotate = 0;
+let isPinching = false;
+let isRotating = false;
 
 // UI Elements
 const textXSlider = document.getElementById("textX");
@@ -48,22 +58,20 @@ const borderSizeSlider = document.getElementById("borderSize");
 const borderSizeValue = document.getElementById("borderSizeValue");
 const fontFamilySelect = document.getElementById("fontFamily");
 const styleButtons = document.querySelectorAll(".style-btn");
-const tabButtons = document.querySelectorAll(".tab-btn");
-const tabPanes = document.querySelectorAll(".tab-pane");
+const modeButtons = document.querySelectorAll(".mode-btn");
+const tabContents = document.querySelectorAll(".tab-content");
 
-// Create default circular frame if not found
+// Create default circular frame
 function createDefaultFrame() {
   const frameCanvas = document.createElement('canvas');
   frameCanvas.width = SIZE;
   frameCanvas.height = SIZE;
   const frameCtx = frameCanvas.getContext('2d');
   
-  // Create circular clipping
   frameCtx.beginPath();
   frameCtx.arc(SIZE/2, SIZE/2, SIZE/2 - 10, 0, Math.PI * 2);
   frameCtx.clip();
   
-  // Decorative circular border with gradient
   const gradient = frameCtx.createLinearGradient(0, 0, SIZE, SIZE);
   gradient.addColorStop(0, 'rgba(102, 166, 255, 0.8)');
   gradient.addColorStop(0.5, 'rgba(137, 247, 254, 0.8)');
@@ -75,41 +83,174 @@ function createDefaultFrame() {
   frameCtx.arc(SIZE/2, SIZE/2, SIZE/2 - 25, 0, Math.PI * 2);
   frameCtx.stroke();
   
-  // Inner glow
   frameCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
   frameCtx.lineWidth = 15;
   frameCtx.beginPath();
   frameCtx.arc(SIZE/2, SIZE/2, SIZE/2 - 45, 0, Math.PI * 2);
   frameCtx.stroke();
   
-  // Convert to image
   frameImg = new Image();
   frameImg.src = frameCanvas.toDataURL();
-  frameImg.onload = () => requestAnimationFrame(draw);
+  frameImg.onload = () => draw();
 }
 
 // Load default frame
 frameImg = new Image();
 frameImg.crossOrigin = "anonymous";
 frameImg.src = "frame.png";
-frameImg.onload = () => requestAnimationFrame(draw);
+frameImg.onload = () => draw();
 frameImg.onerror = createDefaultFrame;
 
-// Smooth value updater with animation
-function updateValueWithAnimation(element, value, format = (v) => v) {
-  const current = parseFloat(element.textContent.replace(/[^\d.-]/g, ''));
-  const target = value;
-  const diff = target - current;
+// Check if touch is on text
+function isTouchOnText(touchX, touchY) {
+  if (!nameText && !padText) return false;
   
-  if (Math.abs(diff) < 0.1) {
-    element.textContent = format(target);
-    return;
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = SIZE / rect.width;
+  const scaleY = SIZE / rect.height;
+  
+  const canvasX = (touchX - rect.left) * scaleX;
+  const canvasY = (touchY - rect.top) * scaleY;
+  
+  // Check name text
+  if (nameText) {
+    ctx.save();
+    ctx.font = `${fontStyle} ${fontWeight} ${fontSize * 2}px ${fontFamily}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    
+    const nameWidth = ctx.measureText(nameText).width;
+    const nameHeight = fontSize * 2;
+    const namePosX = SIZE/2 + (textX * 2);
+    const namePosY = SIZE - 200 + (textY * 2);
+    
+    if (canvasX >= namePosX - nameWidth/2 && canvasX <= namePosX + nameWidth/2 &&
+        canvasY >= namePosY - nameHeight/2 && canvasY <= namePosY + nameHeight/2) {
+      ctx.restore();
+      return true;
+    }
+    ctx.restore();
   }
   
-  const step = diff * 0.1;
-  element.textContent = format(current + step);
+  // Check pad text
+  if (padText) {
+    ctx.save();
+    const padFontSize = fontSize * 2 * 0.7;
+    ctx.font = `${fontStyle} ${fontWeight} ${padFontSize}px ${fontFamily}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    
+    const padWidth = ctx.measureText(padText).width;
+    const padHeight = padFontSize;
+    const padPosX = SIZE/2 + (textX * 2);
+    const padPosY = (SIZE - 200 + (textY * 2)) + fontSize * 2 * 0.9;
+    
+    if (canvasX >= padPosX - padWidth/2 && canvasX <= padPosX + padWidth/2 &&
+        canvasY >= padPosY - padHeight/2 && canvasY <= padPosY + padHeight/2) {
+      ctx.restore();
+      return true;
+    }
+    ctx.restore();
+  }
   
-  requestAnimationFrame(() => updateValueWithAnimation(element, target, format));
+  return false;
+}
+
+// Touch event handlers
+canvas.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  if (e.touches.length === 1) {
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    
+    if (isTouchOnText(touch.clientX, touch.clientY)) {
+      isDraggingText = true;
+      initialTextX = textX;
+      initialTextY = textY;
+    } else if (img) {
+      isDraggingPhoto = true;
+      initialMoveX = moveX;
+      initialMoveY = moveY;
+    }
+  } else if (e.touches.length === 2) {
+    isPinching = true;
+    initialZoom = zoom;
+    initialDistance = getTouchDistance(e.touches);
+    
+    // Calculate initial rotation
+    const touch1 = e.touches[0];
+    const touch2 = e.touches[1];
+    const angle = Math.atan2(touch2.clientY - touch1.clientY, touch2.clientX - touch1.clientX);
+    initialRotate = angle * (180 / Math.PI);
+  }
+});
+
+canvas.addEventListener('touchmove', function(e) {
+  e.preventDefault();
+  
+  if (e.touches.length === 1 && (isDraggingPhoto || isDraggingText)) {
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartX;
+    const deltaY = touch.clientY - touchStartY;
+    
+    if (isDraggingPhoto) {
+      moveX = initialMoveX + deltaX * 0.5;
+      moveY = initialMoveY + deltaY * 0.5;
+      
+      moveXSlider.value = moveX;
+      moveYSlider.value = moveY;
+      moveXValue.textContent = Math.round(moveX);
+      moveYValue.textContent = Math.round(moveY);
+    } else if (isDraggingText) {
+      textX = initialTextX + deltaX * 0.2;
+      textY = initialTextY + deltaY * 0.2;
+      
+      textXSlider.value = textX;
+      textYSlider.value = textY;
+      textXValue.textContent = Math.round(textX);
+      textYValue.textContent = Math.round(textY);
+    }
+    
+    draw();
+  } else if (e.touches.length === 2 && isPinching) {
+    const currentDistance = getTouchDistance(e.touches);
+    const zoomDelta = (currentDistance - initialDistance) * 0.01;
+    zoom = Math.max(0.5, Math.min(3, initialZoom + zoomDelta));
+    
+    zoomSlider.value = zoom;
+    zoomValue.textContent = zoom.toFixed(2);
+    
+    // Rotation
+    const touch1 = e.touches[0];
+    const touch2 = e.touches[1];
+    const currentAngle = Math.atan2(touch2.clientY - touch1.clientY, touch2.clientX - touch1.clientX) * (180 / Math.PI);
+    const rotateDelta = currentAngle - initialRotate;
+    rotate = (rotate + rotateDelta) % 360;
+    
+    rotateSlider.value = rotate;
+    rotateValue.textContent = Math.round(rotate) + '°';
+    initialRotate = currentAngle;
+    
+    draw();
+  }
+});
+
+canvas.addEventListener('touchend', function(e) {
+  isDraggingPhoto = false;
+  isDraggingText = false;
+  isPinching = false;
+});
+
+function getTouchDistance(touches) {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+// Update value displays
+function updateValueDisplay(element, value, format = (v) => v) {
+  element.textContent = format(value);
 }
 
 // 1. Upload Photo
@@ -124,27 +265,12 @@ document.getElementById("upload").onchange = function(e) {
     img = new Image();
     img.src = URL.createObjectURL(file);
     img.onload = function() {
-      // Auto-adjust zoom for optimal fit
       const scaleX = SIZE / img.width;
       const scaleY = SIZE / img.height;
       zoom = Math.min(scaleX, scaleY) * 0.9;
       
-      // Smooth transition to new zoom
-      let currentZoom = parseFloat(zoomSlider.value);
-      const zoomStep = (zoom - currentZoom) / 10;
-      
-      function animateZoom() {
-        currentZoom += zoomStep;
-        zoomSlider.value = currentZoom;
-        updateValueWithAnimation(zoomValue, currentZoom, v => v.toFixed(2));
-        draw();
-        
-        if (Math.abs(zoom - currentZoom) > 0.01) {
-          requestAnimationFrame(animateZoom);
-        }
-      }
-      animateZoom();
-      
+      zoomSlider.value = zoom;
+      zoomValue.textContent = zoom.toFixed(2);
       draw();
     };
   }
@@ -161,88 +287,88 @@ document.getElementById("uploadFrame").onchange = function(e) {
     
     frameImg = new Image();
     frameImg.src = URL.createObjectURL(file);
-    frameImg.onload = () => requestAnimationFrame(draw);
+    frameImg.onload = () => draw();
   }
 };
 
 // 3. Name Input
 document.getElementById("nameText").oninput = function() {
   nameText = this.value.trim();
-  requestAnimationFrame(draw);
+  draw();
 };
 
 // 4. Pad Input
 document.getElementById("padText").oninput = function() {
   padText = this.value.trim();
-  requestAnimationFrame(draw);
+  draw();
 };
 
 // 5. Text Position Controls
 textXSlider.oninput = function() {
   textX = parseFloat(this.value);
-  updateValueWithAnimation(textXValue, textX);
-  requestAnimationFrame(draw);
+  textXValue.textContent = Math.round(textX);
+  draw();
 };
 
 textYSlider.oninput = function() {
   textY = parseFloat(this.value);
-  updateValueWithAnimation(textYValue, textY);
-  requestAnimationFrame(draw);
+  textYValue.textContent = Math.round(textY);
+  draw();
 };
 
 // 6. Photo Controls
 zoomSlider.oninput = function() {
   zoom = parseFloat(this.value);
-  updateValueWithAnimation(zoomValue, zoom, v => v.toFixed(2));
-  requestAnimationFrame(draw);
+  zoomValue.textContent = zoom.toFixed(2);
+  draw();
 };
 
 rotateSlider.oninput = function() {
   rotate = parseFloat(this.value);
-  updateValueWithAnimation(rotateValue, rotate, v => `${Math.round(v)}°`);
-  requestAnimationFrame(draw);
+  rotateValue.textContent = Math.round(rotate) + '°';
+  draw();
 };
 
 moveXSlider.oninput = function() {
   moveX = parseFloat(this.value);
-  updateValueWithAnimation(moveXValue, moveX, v => Math.round(v));
-  requestAnimationFrame(draw);
+  moveXValue.textContent = Math.round(moveX);
+  draw();
 };
 
 moveYSlider.oninput = function() {
   moveY = parseFloat(this.value);
-  updateValueWithAnimation(moveYValue, moveY, v => Math.round(v));
-  requestAnimationFrame(draw);
+  moveYValue.textContent = Math.round(moveY);
+  draw();
 };
 
 // 7. Font Controls
 fontSizeSlider.oninput = function() {
   fontSize = parseInt(this.value);
-  updateValueWithAnimation(fontSizeValue, fontSize);
-  requestAnimationFrame(draw);
+  fontSizeValue.textContent = fontSize;
+  draw();
 };
 
 fontColorPicker.oninput = function() {
   fontColor = this.value;
   fontColorPreview.style.backgroundColor = fontColor;
-  requestAnimationFrame(draw);
+  draw();
 };
 
 borderColorPicker.oninput = function() {
   borderColor = this.value;
   borderColorPreview.style.backgroundColor = borderColor;
-  requestAnimationFrame(draw);
+  draw();
 };
 
 borderSizeSlider.oninput = function() {
   borderSize = parseInt(this.value);
-  updateValueWithAnimation(borderSizeValue, borderSize, v => `${v}px`);
-  requestAnimationFrame(draw);
+  borderSizeValue.textContent = borderSize + 'px';
+  draw();
 };
 
 fontFamilySelect.onchange = function() {
   fontFamily = this.value;
-  requestAnimationFrame(draw);
+  draw();
 };
 
 // Style Buttons
@@ -257,146 +383,89 @@ styleButtons.forEach(btn => {
       fontStyle = this.classList.contains("active") ? "italic" : "normal";
     }
     
-    // Smooth button animation
-    this.style.transform = "scale(0.95)";
-    setTimeout(() => {
-      this.style.transform = "";
-    }, 150);
-    
-    requestAnimationFrame(draw);
+    draw();
   });
 });
 
-// Tab Switching with smooth animation
-tabButtons.forEach(btn => {
+// Mode Switching
+modeButtons.forEach(btn => {
   btn.addEventListener("click", function() {
-    const tabId = this.getAttribute("data-tab");
+    const mode = this.getAttribute("data-mode");
     
-    // Smooth transition
-    tabButtons.forEach(b => {
-      b.style.transform = "scale(0.95)";
-      b.style.opacity = "0.8";
-      b.classList.remove("active");
-      setTimeout(() => {
-        b.style.transform = "";
-        b.style.opacity = "";
-      }, 200);
-    });
-    
+    modeButtons.forEach(b => b.classList.remove("active"));
     this.classList.add("active");
     
-    // Show corresponding tab pane with animation
-    tabPanes.forEach(pane => {
-      pane.style.opacity = "0";
-      pane.style.transform = "translateY(10px)";
-      pane.classList.remove("active");
-      
-      if (pane.id === `${tabId}-tab`) {
-        setTimeout(() => {
-          pane.classList.add("active");
-          pane.style.opacity = "1";
-          pane.style.transform = "translateY(0)";
-        }, 50);
+    tabContents.forEach(content => {
+      content.classList.remove("active");
+      if (content.id === `${mode}-tab`) {
+        content.classList.add("active");
       }
     });
   });
 });
 
-// 8. Reset Function with smooth animation
+// 8. Reset Function
 document.getElementById("reset").onclick = function() {
-  // Button press animation
-  this.style.transform = "scale(0.95)";
-  setTimeout(() => this.style.transform = "", 200);
+  // Reset all values
+  zoom = 1;
+  rotate = 0;
+  moveX = 0;
+  moveY = 0;
+  textX = 0;
+  textY = 0;
+  fontSize = 40;
+  fontColor = "#ffffff";
+  borderColor = "#000000";
+  borderSize = 3;
+  fontFamily = "'Poppins', sans-serif";
+  fontStyle = "normal";
+  fontWeight = "normal";
+  nameText = "";
+  padText = "";
   
-  // Smoothly reset all values
-  const resetValues = [
-    { element: zoomSlider, target: 1, current: zoom, step: (1 - zoom) / 20 },
-    { element: rotateSlider, target: 0, current: rotate, step: (0 - rotate) / 20 },
-    { element: moveXSlider, target: 0, current: moveX, step: (0 - moveX) / 20 },
-    { element: moveYSlider, target: 0, current: moveY, step: (0 - moveY) / 20 },
-    { element: textXSlider, target: 0, current: textX, step: (0 - textX) / 20 },
-    { element: textYSlider, target: 0, current: textY, step: (0 - textY) / 20 },
-    { element: fontSizeSlider, target: 40, current: fontSize, step: (40 - fontSize) / 20 }
-  ];
+  // Update sliders
+  zoomSlider.value = zoom;
+  rotateSlider.value = rotate;
+  moveXSlider.value = moveX;
+  moveYSlider.value = moveY;
+  textXSlider.value = textX;
+  textYSlider.value = textY;
+  fontSizeSlider.value = fontSize;
+  fontColorPicker.value = fontColor;
+  borderColorPicker.value = borderColor;
+  borderSizeSlider.value = borderSize;
+  fontFamilySelect.value = fontFamily;
   
-  function animateReset() {
-    let allDone = true;
-    
-    resetValues.forEach(item => {
-      if (Math.abs(item.current - item.target) > 0.1) {
-        item.current += item.step;
-        item.element.value = item.current;
-        allDone = false;
-      }
-    });
-    
-    // Update display values
-    zoom = parseFloat(zoomSlider.value);
-    rotate = parseFloat(rotateSlider.value);
-    moveX = parseFloat(moveXSlider.value);
-    moveY = parseFloat(moveYSlider.value);
-    textX = parseFloat(textXSlider.value);
-    textY = parseFloat(textYSlider.value);
-    fontSize = parseInt(fontSizeSlider.value);
-    
-    zoomValue.textContent = zoom.toFixed(2);
-    rotateValue.textContent = `${Math.round(rotate)}°`;
-    moveXValue.textContent = Math.round(moveX);
-    moveYValue.textContent = Math.round(moveY);
-    textXValue.textContent = Math.round(textX);
-    textYValue.textContent = Math.round(textY);
-    fontSizeValue.textContent = fontSize;
-    
-    draw();
-    
-    if (!allDone) {
-      requestAnimationFrame(animateReset);
-    } else {
-      // Final reset
-      nameText = "";
-      padText = "";
-      fontColor = "#ffffff";
-      borderColor = "#000000";
-      borderSize = 3;
-      fontFamily = "'Poppins', sans-serif";
-      fontStyle = "normal";
-      fontWeight = "normal";
-      
-      document.getElementById("nameText").value = "";
-      document.getElementById("padText").value = "";
-      fontColorPicker.value = fontColor;
-      borderColorPicker.value = borderColor;
-      borderSizeSlider.value = borderSize;
-      fontFamilySelect.value = fontFamily;
-      fontColorPreview.style.backgroundColor = fontColor;
-      borderColorPreview.style.backgroundColor = borderColor;
-      borderSizeValue.textContent = `${borderSize}px`;
-      
-      styleButtons.forEach(btn => btn.classList.remove("active"));
-      
-      // Switch to text tab
-      tabButtons.forEach(b => b.classList.remove("active"));
-      tabButtons[0].classList.add("active");
-      tabPanes.forEach(pane => pane.classList.remove("active"));
-      document.getElementById("text-tab").classList.add("active");
-    }
-  }
+  // Update displays
+  zoomValue.textContent = zoom.toFixed(2);
+  rotateValue.textContent = Math.round(rotate) + '°';
+  moveXValue.textContent = Math.round(moveX);
+  moveYValue.textContent = Math.round(moveY);
+  textXValue.textContent = Math.round(textX);
+  textYValue.textContent = Math.round(textY);
+  fontSizeValue.textContent = fontSize;
+  borderSizeValue.textContent = borderSize + 'px';
+  fontColorPreview.style.backgroundColor = fontColor;
+  borderColorPreview.style.backgroundColor = borderColor;
   
-  animateReset();
+  // Clear inputs
+  document.getElementById("nameText").value = "";
+  document.getElementById("padText").value = "";
+  
+  // Reset style buttons
+  styleButtons.forEach(btn => btn.classList.remove("active"));
+  
+  // Switch to text tab
+  modeButtons.forEach(b => b.classList.remove("active"));
+  modeButtons[0].classList.add("active");
+  tabContents.forEach(content => content.classList.remove("active"));
+  document.getElementById("text-tab").classList.add("active");
+  
+  draw();
 };
 
-// 9. Optimized DRAW FUNCTION
-function draw(timestamp) {
-  if (!timestamp) timestamp = performance.now();
-  
-  // Throttle drawing to 60fps
-  if (timestamp - lastRenderTime < 16) {
-    animationFrame = requestAnimationFrame(draw);
-    return;
-  }
-  lastRenderTime = timestamp;
-  
-  // Clear with fade effect
+// 9. DRAW FUNCTION
+function draw() {
   ctx.clearRect(0, 0, SIZE, SIZE);
   
   // Circular clipping
@@ -409,7 +478,7 @@ function draw(timestamp) {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, SIZE, SIZE);
   
-  // Draw Photo with smooth transformations
+  // Draw Photo
   if (img) {
     ctx.save();
     
@@ -419,7 +488,6 @@ function draw(timestamp) {
     const w = img.width * zoom;
     const h = img.height * zoom;
     
-    // Smooth anti-aliasing
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
     
@@ -428,11 +496,10 @@ function draw(timestamp) {
     ctx.restore();
   }
   
-  // Draw Text with border/outline
+  // Draw Text
   if (nameText || padText) {
     ctx.save();
     
-    // Build font string
     const fontStyleStr = fontStyle === "italic" ? "italic" : "normal";
     const fontWeightStr = fontWeight === "bold" ? "bold" : "normal";
     const fontSizeScaled = fontSize * 2;
@@ -441,7 +508,6 @@ function draw(timestamp) {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     
-    // Calculate text position
     const textPosX = SIZE/2 + (textX * 2);
     const namePosY = SIZE - 200 + (textY * 2);
     const padPosY = namePosY + fontSizeScaled * 0.9;
@@ -491,23 +557,19 @@ function draw(timestamp) {
     ctx.drawImage(frameImg, 0, 0, SIZE, SIZE);
     ctx.restore();
   }
-  
-  animationFrame = null;
 }
 
-// 10. Download with loading animation
+// 10. Download
 document.getElementById("download").onclick = function() {
   if (!img) {
     alert("Please select a photo first!");
     return;
   }
   
-  // Button animation
   const originalHTML = this.innerHTML;
   this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
   this.disabled = true;
   
-  // Create high-quality download canvas
   setTimeout(() => {
     const downloadCanvas = document.createElement("canvas");
     const downloadCtx = downloadCanvas.getContext("2d");
@@ -516,29 +578,23 @@ document.getElementById("download").onclick = function() {
     downloadCanvas.width = downloadSize;
     downloadCanvas.height = downloadSize;
     
-    // Scale factor
     const scale = downloadSize / SIZE;
     
-    // Circular clipping for download
     downloadCtx.save();
     downloadCtx.beginPath();
     downloadCtx.arc(downloadSize/2, downloadSize/2, downloadSize/2 - 5, 0, Math.PI * 2);
     downloadCtx.clip();
     
-    // White background
     downloadCtx.fillStyle = "#ffffff";
     downloadCtx.fillRect(0, 0, downloadSize, downloadSize);
     
-    // Draw photo
     if (img) {
       downloadCtx.save();
       
       const scaledMoveX = moveX * scale;
       const scaledMoveY = moveY * scale;
-      const centerX = downloadSize/2 + scaledMoveX;
-      const centerY = downloadSize/2 + scaledMoveY;
       
-      downloadCtx.translate(centerX, centerY);
+      downloadCtx.translate(downloadSize/2 + scaledMoveX, downloadSize/2 + scaledMoveY);
       downloadCtx.rotate(rotate * Math.PI / 180);
       
       const scaledWidth = img.width * zoom * scale;
@@ -548,7 +604,6 @@ document.getElementById("download").onclick = function() {
       downloadCtx.restore();
     }
     
-    // Draw text for download
     if (nameText || padText) {
       downloadCtx.save();
       
@@ -564,7 +619,6 @@ document.getElementById("download").onclick = function() {
       const namePosY = downloadSize - 200 * scale + (textY * 2 * scale);
       const padPosY = namePosY + fontSizeScaled * 0.9;
       
-      // Draw Name
       if (nameText) {
         if (borderSize > 0) {
           downloadCtx.strokeStyle = borderColor;
@@ -577,7 +631,6 @@ document.getElementById("download").onclick = function() {
         downloadCtx.fillText(nameText, textPosX, namePosY);
       }
       
-      // Draw Pad
       if (padText) {
         const padFontSize = fontSizeScaled * 0.7;
         downloadCtx.font = `${fontStyleStr} ${fontWeightStr} ${padFontSize}px ${fontFamily}`;
@@ -598,7 +651,6 @@ document.getElementById("download").onclick = function() {
     
     downloadCtx.restore();
     
-    // Draw frame
     if (frameImg) {
       downloadCtx.save();
       downloadCtx.beginPath();
@@ -608,7 +660,6 @@ document.getElementById("download").onclick = function() {
       downloadCtx.restore();
     }
     
-    // Create download
     const link = document.createElement("a");
     link.href = downloadCanvas.toDataURL("image/png", 1.0);
     link.download = `photo-frame-${Date.now()}.png`;
@@ -616,50 +667,79 @@ document.getElementById("download").onclick = function() {
     link.click();
     document.body.removeChild(link);
     
-    // Reset button
     this.innerHTML = originalHTML;
     this.disabled = false;
-    
-    // Success animation
-    this.style.background = "linear-gradient(135deg, #4cd964, #5ac8fa)";
-    setTimeout(() => {
-      this.style.background = "";
-    }, 1000);
-    
   }, 300);
 };
 
 // 11. Initialize
 fontColorPreview.style.backgroundColor = fontColor;
 borderColorPreview.style.backgroundColor = borderColor;
-updateValueWithAnimation(zoomValue, zoom, v => v.toFixed(2));
-updateValueWithAnimation(rotateValue, rotate, v => `${Math.round(v)}°`);
-updateValueWithAnimation(moveXValue, moveX, v => Math.round(v));
-updateValueWithAnimation(moveYValue, moveY, v => Math.round(v));
-updateValueWithAnimation(textXValue, textX, v => Math.round(v));
-updateValueWithAnimation(textYValue, textY, v => Math.round(v));
-updateValueWithAnimation(fontSizeValue, fontSize);
-updateValueWithAnimation(borderSizeValue, borderSize, v => `${v}px`);
-
-// Smooth initial animation
-setTimeout(() => {
-  document.querySelector('.app-container').style.opacity = "1";
-  document.querySelector('.app-container').style.transform = "translateY(0)";
-}, 100);
+zoomValue.textContent = zoom.toFixed(2);
+rotateValue.textContent = Math.round(rotate) + '°';
+moveXValue.textContent = Math.round(moveX);
+moveYValue.textContent = Math.round(moveY);
+textXValue.textContent = Math.round(textX);
+textYValue.textContent = Math.round(textY);
+fontSizeValue.textContent = fontSize;
+borderSizeValue.textContent = borderSize + 'px';
 
 // Initial draw
-requestAnimationFrame(draw);
+draw();
 
-// Optimize performance
-window.addEventListener('blur', () => {
-  if (animationFrame) {
-    cancelAnimationFrame(animationFrame);
-    animationFrame = null;
+// Mouse drag for PC
+let isMouseDown = false;
+canvas.addEventListener('mousedown', function(e) {
+  isMouseDown = true;
+  touchStartX = e.clientX;
+  touchStartY = e.clientY;
+  
+  if (isTouchOnText(e.clientX, e.clientY)) {
+    isDraggingText = true;
+    initialTextX = textX;
+    initialTextY = textY;
+  } else if (img) {
+    isDraggingPhoto = true;
+    initialMoveX = moveX;
+    initialMoveY = moveY;
   }
 });
 
-window.addEventListener('focus', () => {
-  if (!animationFrame) {
-    requestAnimationFrame(draw);
+canvas.addEventListener('mousemove', function(e) {
+  if (!isMouseDown) return;
+  
+  const deltaX = e.clientX - touchStartX;
+  const deltaY = e.clientY - touchStartY;
+  
+  if (isDraggingPhoto) {
+    moveX = initialMoveX + deltaX * 0.5;
+    moveY = initialMoveY + deltaY * 0.5;
+    
+    moveXSlider.value = moveX;
+    moveYSlider.value = moveY;
+    moveXValue.textContent = Math.round(moveX);
+    moveYValue.textContent = Math.round(moveY);
+  } else if (isDraggingText) {
+    textX = initialTextX + deltaX * 0.2;
+    textY = initialTextY + deltaY * 0.2;
+    
+    textXSlider.value = textX;
+    textYSlider.value = textY;
+    textXValue.textContent = Math.round(textX);
+    textYValue.textContent = Math.round(textY);
   }
+  
+  draw();
+});
+
+canvas.addEventListener('mouseup', function() {
+  isMouseDown = false;
+  isDraggingPhoto = false;
+  isDraggingText = false;
+});
+
+canvas.addEventListener('mouseleave', function() {
+  isMouseDown = false;
+  isDraggingPhoto = false;
+  isDraggingText = false;
 });
