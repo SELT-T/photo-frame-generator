@@ -1,44 +1,45 @@
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
-const touchOverlay = document.getElementById("touchOverlay");
-const canvasWrapper = document.getElementById("canvasWrapper");
-
-// Set canvas size
 const SIZE = 1024;
 canvas.width = SIZE;
 canvas.height = SIZE;
 
-// Display canvas size - Mobile optimized
-const updateCanvasSize = () => {
-  const isMobile = window.innerWidth <= 768;
-  const size = isMobile ? Math.min(300, window.innerWidth - 40) : 350;
-  canvas.style.width = `${size}px`;
-  canvas.style.height = `${size}px`;
-  touchOverlay.style.width = `${size}px`;
-  touchOverlay.style.height = `${size}px`;
-};
-
-// Variables
+// Variables with touch support
 let img = null;
 let frameImg = null;
 let zoom = 1, rotate = 0, moveX = 0, moveY = 0;
 let nameText = "", padText = "";
-let textSize = 40, textColor = "#ffffff";
-let borderRadius = 0, brightness = 1;
+let textX = 0, textY = 0;
 
-// Touch Variables
-let isDragging = false;
-let lastTouchX = 0, lastTouchY = 0;
-let initialPinchDistance = 0;
+// Font Settings
+let fontSize = 40;
+let fontColor = "#ffffff";
+let borderColor = "#000000";
+let borderSize = 3;
+let fontFamily = "'Poppins', sans-serif";
+let fontStyle = "normal";
+let fontWeight = "normal";
+
+// Touch gesture variables
+let isDraggingPhoto = false;
+let isDraggingText = false;
+let touchStartX = 0;
+let touchStartY = 0;
+let initialMoveX = 0;
+let initialMoveY = 0;
+let initialTextX = 0;
+let initialTextY = 0;
 let initialZoom = 1;
+let initialDistance = 0;
+let initialRotate = 0;
+let isPinching = false;
+let isRotating = false;
 
 // UI Elements
-const displayName = document.getElementById("displayName");
-const displayPad = document.getElementById("displayPad");
-const textSizeSlider = document.getElementById("textSize");
-const textSizeValue = document.getElementById("textSizeValue");
-const textColorPicker = document.getElementById("textColor");
-const textColorPreview = document.getElementById("textColorPreview");
+const textXSlider = document.getElementById("textX");
+const textXValue = document.getElementById("textXValue");
+const textYSlider = document.getElementById("textY");
+const textYValue = document.getElementById("textYValue");
 const zoomSlider = document.getElementById("zoom");
 const zoomValue = document.getElementById("zoomValue");
 const rotateSlider = document.getElementById("rotate");
@@ -47,146 +48,230 @@ const moveXSlider = document.getElementById("moveX");
 const moveXValue = document.getElementById("moveXValue");
 const moveYSlider = document.getElementById("moveY");
 const moveYValue = document.getElementById("moveYValue");
-const borderRadiusSlider = document.getElementById("borderRadius");
-const borderRadiusValue = document.getElementById("borderRadiusValue");
-const brightnessSlider = document.getElementById("brightness");
-const brightnessValue = document.getElementById("brightnessValue");
-const toggleOptions = document.getElementById("toggleOptions");
-const advancedControls = document.getElementById("advancedControls");
-const notification = document.getElementById("notification");
-const notificationText = document.getElementById("notificationText");
+const fontSizeSlider = document.getElementById("fontSize");
+const fontSizeValue = document.getElementById("fontSizeValue");
+const fontColorPicker = document.getElementById("fontColor");
+const fontColorPreview = document.getElementById("fontColorPreview");
+const borderColorPicker = document.getElementById("borderColor");
+const borderColorPreview = document.getElementById("borderColorPreview");
+const borderSizeSlider = document.getElementById("borderSize");
+const borderSizeValue = document.getElementById("borderSizeValue");
+const fontFamilySelect = document.getElementById("fontFamily");
+const styleButtons = document.querySelectorAll(".style-btn");
+const modeButtons = document.querySelectorAll(".mode-btn");
+const tabContents = document.querySelectorAll(".tab-content");
 
-// ========== TOUCH GESTURES ==========
-touchOverlay.addEventListener('touchstart', handleTouchStart, { passive: false });
-touchOverlay.addEventListener('touchmove', handleTouchMove, { passive: false });
-touchOverlay.addEventListener('touchend', handleTouchEnd, { passive: false });
-
-function handleTouchStart(e) {
-  e.preventDefault();
-  if (!img) return;
+// Create default circular frame
+function createDefaultFrame() {
+  const frameCanvas = document.createElement('canvas');
+  frameCanvas.width = SIZE;
+  frameCanvas.height = SIZE;
+  const frameCtx = frameCanvas.getContext('2d');
   
-  if (e.touches.length === 1) {
-    // Single touch - start dragging
-    isDragging = true;
-    lastTouchX = e.touches[0].clientX;
-    lastTouchY = e.touches[0].clientY;
-  } else if (e.touches.length === 2) {
-    // Two touches - start pinch zoom
-    isDragging = false;
-    initialPinchDistance = getTouchDistance(e.touches[0], e.touches[1]);
-    initialZoom = zoom;
-  }
-}
-
-function handleTouchMove(e) {
-  e.preventDefault();
-  if (!img) return;
+  frameCtx.beginPath();
+  frameCtx.arc(SIZE/2, SIZE/2, SIZE/2 - 10, 0, Math.PI * 2);
+  frameCtx.clip();
   
-  if (e.touches.length === 1 && isDragging) {
-    // Single touch move - drag photo
-    const currentX = e.touches[0].clientX;
-    const currentY = e.touches[0].clientY;
-    
-    const deltaX = currentX - lastTouchX;
-    const deltaY = currentY - lastTouchY;
-    
-    // Adjust sensitivity for mobile
-    const sensitivity = 0.8;
-    moveX += deltaX * sensitivity;
-    moveY += deltaY * sensitivity;
-    
-    // Update UI sliders
-    moveXSlider.value = moveX;
-    moveXValue.textContent = Math.round(moveX);
-    moveYSlider.value = moveY;
-    moveYValue.textContent = Math.round(moveY);
-    
-    lastTouchX = currentX;
-    lastTouchY = currentY;
-    draw();
-  } else if (e.touches.length === 2) {
-    // Two touches move - pinch zoom
-    const currentDistance = getTouchDistance(e.touches[0], e.touches[1]);
-    if (initialPinchDistance > 0) {
-      const scale = currentDistance / initialPinchDistance;
-      zoom = Math.max(0.3, Math.min(5, initialZoom * scale));
-      
-      // Update UI slider
-      zoomSlider.value = zoom;
-      zoomValue.textContent = zoom.toFixed(2);
-      draw();
-    }
-  }
+  const gradient = frameCtx.createLinearGradient(0, 0, SIZE, SIZE);
+  gradient.addColorStop(0, 'rgba(102, 166, 255, 0.8)');
+  gradient.addColorStop(0.5, 'rgba(137, 247, 254, 0.8)');
+  gradient.addColorStop(1, 'rgba(102, 166, 255, 0.8)');
+  
+  frameCtx.strokeStyle = gradient;
+  frameCtx.lineWidth = 30;
+  frameCtx.beginPath();
+  frameCtx.arc(SIZE/2, SIZE/2, SIZE/2 - 25, 0, Math.PI * 2);
+  frameCtx.stroke();
+  
+  frameCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+  frameCtx.lineWidth = 15;
+  frameCtx.beginPath();
+  frameCtx.arc(SIZE/2, SIZE/2, SIZE/2 - 45, 0, Math.PI * 2);
+  frameCtx.stroke();
+  
+  frameImg = new Image();
+  frameImg.src = frameCanvas.toDataURL();
+  frameImg.onload = () => draw();
 }
-
-function handleTouchEnd(e) {
-  e.preventDefault();
-  isDragging = false;
-  initialPinchDistance = 0;
-}
-
-function getTouchDistance(touch1, touch2) {
-  const dx = touch1.clientX - touch2.clientX;
-  const dy = touch1.clientY - touch2.clientY;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
-// ========== END TOUCH GESTURES ==========
 
 // Load default frame
 frameImg = new Image();
 frameImg.crossOrigin = "anonymous";
 frameImg.src = "frame.png";
-frameImg.onload = () => {
-  showNotification("Frame loaded successfully!");
-  draw();
-};
+frameImg.onload = () => draw();
+frameImg.onerror = createDefaultFrame;
 
-frameImg.onerror = () => {
-  console.log("Default frame not found, using generated frame");
-  frameImg = null;
-  draw();
-};
+// Check if touch is on text
+function isTouchOnText(touchX, touchY) {
+  if (!nameText && !padText) return false;
+  
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = SIZE / rect.width;
+  const scaleY = SIZE / rect.height;
+  
+  const canvasX = (touchX - rect.left) * scaleX;
+  const canvasY = (touchY - rect.top) * scaleY;
+  
+  // Check name text
+  if (nameText) {
+    ctx.save();
+    ctx.font = `${fontStyle} ${fontWeight} ${fontSize * 2}px ${fontFamily}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    
+    const nameWidth = ctx.measureText(nameText).width;
+    const nameHeight = fontSize * 2;
+    const namePosX = SIZE/2 + (textX * 2);
+    const namePosY = SIZE - 200 + (textY * 2);
+    
+    if (canvasX >= namePosX - nameWidth/2 && canvasX <= namePosX + nameWidth/2 &&
+        canvasY >= namePosY - nameHeight/2 && canvasY <= namePosY + nameHeight/2) {
+      ctx.restore();
+      return true;
+    }
+    ctx.restore();
+  }
+  
+  // Check pad text
+  if (padText) {
+    ctx.save();
+    const padFontSize = fontSize * 2 * 0.7;
+    ctx.font = `${fontStyle} ${fontWeight} ${padFontSize}px ${fontFamily}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    
+    const padWidth = ctx.measureText(padText).width;
+    const padHeight = padFontSize;
+    const padPosX = SIZE/2 + (textX * 2);
+    const padPosY = (SIZE - 200 + (textY * 2)) + fontSize * 2 * 0.9;
+    
+    if (canvasX >= padPosX - padWidth/2 && canvasX <= padPosX + padWidth/2 &&
+        canvasY >= padPosY - padHeight/2 && canvasY <= padPosY + padHeight/2) {
+      ctx.restore();
+      return true;
+    }
+    ctx.restore();
+  }
+  
+  return false;
+}
+
+// Touch event handlers
+canvas.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  if (e.touches.length === 1) {
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    
+    if (isTouchOnText(touch.clientX, touch.clientY)) {
+      isDraggingText = true;
+      initialTextX = textX;
+      initialTextY = textY;
+    } else if (img) {
+      isDraggingPhoto = true;
+      initialMoveX = moveX;
+      initialMoveY = moveY;
+    }
+  } else if (e.touches.length === 2) {
+    isPinching = true;
+    initialZoom = zoom;
+    initialDistance = getTouchDistance(e.touches);
+    
+    // Calculate initial rotation
+    const touch1 = e.touches[0];
+    const touch2 = e.touches[1];
+    const angle = Math.atan2(touch2.clientY - touch1.clientY, touch2.clientX - touch1.clientX);
+    initialRotate = angle * (180 / Math.PI);
+  }
+});
+
+canvas.addEventListener('touchmove', function(e) {
+  e.preventDefault();
+  
+  if (e.touches.length === 1 && (isDraggingPhoto || isDraggingText)) {
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartX;
+    const deltaY = touch.clientY - touchStartY;
+    
+    if (isDraggingPhoto) {
+      moveX = initialMoveX + deltaX * 0.5;
+      moveY = initialMoveY + deltaY * 0.5;
+      
+      moveXSlider.value = moveX;
+      moveYSlider.value = moveY;
+      moveXValue.textContent = Math.round(moveX);
+      moveYValue.textContent = Math.round(moveY);
+    } else if (isDraggingText) {
+      textX = initialTextX + deltaX * 0.2;
+      textY = initialTextY + deltaY * 0.2;
+      
+      textXSlider.value = textX;
+      textYSlider.value = textY;
+      textXValue.textContent = Math.round(textX);
+      textYValue.textContent = Math.round(textY);
+    }
+    
+    draw();
+  } else if (e.touches.length === 2 && isPinching) {
+    const currentDistance = getTouchDistance(e.touches);
+    const zoomDelta = (currentDistance - initialDistance) * 0.01;
+    zoom = Math.max(0.5, Math.min(3, initialZoom + zoomDelta));
+    
+    zoomSlider.value = zoom;
+    zoomValue.textContent = zoom.toFixed(2);
+    
+    // Rotation
+    const touch1 = e.touches[0];
+    const touch2 = e.touches[1];
+    const currentAngle = Math.atan2(touch2.clientY - touch1.clientY, touch2.clientX - touch1.clientX) * (180 / Math.PI);
+    const rotateDelta = currentAngle - initialRotate;
+    rotate = (rotate + rotateDelta) % 360;
+    
+    rotateSlider.value = rotate;
+    rotateValue.textContent = Math.round(rotate) + '°';
+    initialRotate = currentAngle;
+    
+    draw();
+  }
+});
+
+canvas.addEventListener('touchend', function(e) {
+  isDraggingPhoto = false;
+  isDraggingText = false;
+  isPinching = false;
+});
+
+function getTouchDistance(touches) {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+// Update value displays
+function updateValueDisplay(element, value, format = (v) => v) {
+  element.textContent = format(value);
+}
 
 // 1. Upload Photo
 document.getElementById("upload").onchange = function(e) {
   if (e.target.files && e.target.files[0]) {
     const file = e.target.files[0];
     if (!file.type.match('image.*')) {
-      showNotification("Please select an image file", "error");
+      alert("Please select an image file!");
       return;
     }
     
     img = new Image();
-    img.crossOrigin = "anonymous";
-    img.src = URL.createObjectURL(e.target.files[0]);
-    img.onload = () => {
-      showNotification("Photo loaded! Use touch to move/zoom");
-      
-      // Auto-adjust zoom to fit photo properly
+    img.src = URL.createObjectURL(file);
+    img.onload = function() {
       const scaleX = SIZE / img.width;
       const scaleY = SIZE / img.height;
-      zoom = Math.min(scaleX, scaleY) * 0.8;
+      zoom = Math.min(scaleX, scaleY) * 0.9;
       
-      // Reset position
-      moveX = 0;
-      moveY = 0;
-      rotate = 0;
-      
-      // Update UI
       zoomSlider.value = zoom;
       zoomValue.textContent = zoom.toFixed(2);
-      moveXSlider.value = moveX;
-      moveXValue.textContent = moveX;
-      moveYSlider.value = moveY;
-      moveYValue.textContent = moveY;
-      rotateSlider.value = rotate;
-      rotateValue.textContent = `${rotate}°`;
-      
       draw();
-    };
-    img.onerror = () => {
-      showNotification("Error loading image", "error");
     };
   }
 };
@@ -196,55 +281,38 @@ document.getElementById("uploadFrame").onchange = function(e) {
   if (e.target.files && e.target.files[0]) {
     const file = e.target.files[0];
     if (!file.type.match('image.*')) {
-      showNotification("Please select an image file", "error");
+      alert("Please select an image file!");
       return;
     }
     
     frameImg = new Image();
-    frameImg.crossOrigin = "anonymous";
-    frameImg.src = URL.createObjectURL(e.target.files[0]);
-    frameImg.onload = () => {
-      showNotification("Frame loaded successfully!");
-      draw();
-    };
-    frameImg.onerror = () => {
-      showNotification("Error loading frame image", "error");
-    };
+    frameImg.src = URL.createObjectURL(file);
+    frameImg.onload = () => draw();
   }
 };
 
 // 3. Name Input
 document.getElementById("nameText").oninput = function() {
   nameText = this.value.trim();
-  displayName.textContent = nameText;
-  displayName.style.color = textColor;
-  displayName.style.fontSize = `${textSize}px`;
   draw();
 };
 
 // 4. Pad Input
 document.getElementById("padText").oninput = function() {
   padText = this.value.trim();
-  displayPad.textContent = padText;
-  displayPad.style.color = textColor;
-  displayPad.style.fontSize = `${textSize * 0.7}px`;
   draw();
 };
 
-// 5. Text Controls
-textSizeSlider.oninput = function() {
-  textSize = parseInt(this.value);
-  textSizeValue.textContent = textSize;
-  displayName.style.fontSize = `${textSize}px`;
-  displayPad.style.fontSize = `${textSize * 0.7}px`;
+// 5. Text Position Controls
+textXSlider.oninput = function() {
+  textX = parseFloat(this.value);
+  textXValue.textContent = Math.round(textX);
   draw();
 };
 
-textColorPicker.oninput = function() {
-  textColor = this.value;
-  textColorPreview.style.backgroundColor = textColor;
-  displayName.style.color = textColor;
-  displayPad.style.color = textColor;
+textYSlider.oninput = function() {
+  textY = parseFloat(this.value);
+  textYValue.textContent = Math.round(textY);
   draw();
 };
 
@@ -257,7 +325,7 @@ zoomSlider.oninput = function() {
 
 rotateSlider.oninput = function() {
   rotate = parseFloat(this.value);
-  rotateValue.textContent = `${rotate}°`;
+  rotateValue.textContent = Math.round(rotate) + '°';
   draw();
 };
 
@@ -273,65 +341,126 @@ moveYSlider.oninput = function() {
   draw();
 };
 
-// 7. Advanced Controls
-borderRadiusSlider.oninput = function() {
-  borderRadius = parseInt(this.value);
-  borderRadiusValue.textContent = `${borderRadius}%`;
+// 7. Font Controls
+fontSizeSlider.oninput = function() {
+  fontSize = parseInt(this.value);
+  fontSizeValue.textContent = fontSize;
   draw();
 };
 
-brightnessSlider.oninput = function() {
-  brightness = parseFloat(this.value);
-  brightnessValue.textContent = brightness.toFixed(2);
+fontColorPicker.oninput = function() {
+  fontColor = this.value;
+  fontColorPreview.style.backgroundColor = fontColor;
   draw();
 };
 
-// Toggle advanced options
-toggleOptions.onclick = function() {
-  advancedControls.classList.toggle("show");
-  this.innerHTML = advancedControls.classList.contains("show") 
-    ? '<i class="fas fa-chevron-up"></i> Hide Advanced Options' 
-    : '<i class="fas fa-sliders-h"></i> Advanced Options';
+borderColorPicker.oninput = function() {
+  borderColor = this.value;
+  borderColorPreview.style.backgroundColor = borderColor;
+  draw();
 };
 
-// 8. Reset
+borderSizeSlider.oninput = function() {
+  borderSize = parseInt(this.value);
+  borderSizeValue.textContent = borderSize + 'px';
+  draw();
+};
+
+fontFamilySelect.onchange = function() {
+  fontFamily = this.value;
+  draw();
+};
+
+// Style Buttons
+styleButtons.forEach(btn => {
+  btn.addEventListener("click", function() {
+    this.classList.toggle("active");
+    const style = this.getAttribute("data-style");
+    
+    if (style === "bold") {
+      fontWeight = this.classList.contains("active") ? "bold" : "normal";
+    } else if (style === "italic") {
+      fontStyle = this.classList.contains("active") ? "italic" : "normal";
+    }
+    
+    draw();
+  });
+});
+
+// Mode Switching
+modeButtons.forEach(btn => {
+  btn.addEventListener("click", function() {
+    const mode = this.getAttribute("data-mode");
+    
+    modeButtons.forEach(b => b.classList.remove("active"));
+    this.classList.add("active");
+    
+    tabContents.forEach(content => {
+      content.classList.remove("active");
+      if (content.id === `${mode}-tab`) {
+        content.classList.add("active");
+      }
+    });
+  });
+});
+
+// 8. Reset Function
 document.getElementById("reset").onclick = function() {
+  // Reset all values
   zoom = 1;
   rotate = 0;
   moveX = 0;
   moveY = 0;
-  textSize = 40;
-  textColor = "#ffffff";
-  borderRadius = 0;
-  brightness = 1;
-  
-  // Reset UI
-  zoomSlider.value = zoom;
-  zoomValue.textContent = zoom.toFixed(2);
-  rotateSlider.value = rotate;
-  rotateValue.textContent = `${rotate}°`;
-  moveXSlider.value = moveX;
-  moveXValue.textContent = moveX;
-  moveYSlider.value = moveY;
-  moveYValue.textContent = moveY;
-  textSizeSlider.value = textSize;
-  textSizeValue.textContent = textSize;
-  textColorPicker.value = textColor;
-  textColorPreview.style.backgroundColor = textColor;
-  borderRadiusSlider.value = borderRadius;
-  borderRadiusValue.textContent = `${borderRadius}%`;
-  brightnessSlider.value = brightness;
-  brightnessValue.textContent = brightness.toFixed(2);
-  
-  // Reset text inputs
-  document.getElementById("nameText").value = "";
-  document.getElementById("padText").value = "";
+  textX = 0;
+  textY = 0;
+  fontSize = 40;
+  fontColor = "#ffffff";
+  borderColor = "#000000";
+  borderSize = 3;
+  fontFamily = "'Poppins', sans-serif";
+  fontStyle = "normal";
+  fontWeight = "normal";
   nameText = "";
   padText = "";
-  displayName.textContent = "";
-  displayPad.textContent = "";
   
-  showNotification("All settings have been reset");
+  // Update sliders
+  zoomSlider.value = zoom;
+  rotateSlider.value = rotate;
+  moveXSlider.value = moveX;
+  moveYSlider.value = moveY;
+  textXSlider.value = textX;
+  textYSlider.value = textY;
+  fontSizeSlider.value = fontSize;
+  fontColorPicker.value = fontColor;
+  borderColorPicker.value = borderColor;
+  borderSizeSlider.value = borderSize;
+  fontFamilySelect.value = fontFamily;
+  
+  // Update displays
+  zoomValue.textContent = zoom.toFixed(2);
+  rotateValue.textContent = Math.round(rotate) + '°';
+  moveXValue.textContent = Math.round(moveX);
+  moveYValue.textContent = Math.round(moveY);
+  textXValue.textContent = Math.round(textX);
+  textYValue.textContent = Math.round(textY);
+  fontSizeValue.textContent = fontSize;
+  borderSizeValue.textContent = borderSize + 'px';
+  fontColorPreview.style.backgroundColor = fontColor;
+  borderColorPreview.style.backgroundColor = borderColor;
+  
+  // Clear inputs
+  document.getElementById("nameText").value = "";
+  document.getElementById("padText").value = "";
+  
+  // Reset style buttons
+  styleButtons.forEach(btn => btn.classList.remove("active"));
+  
+  // Switch to text tab
+  modeButtons.forEach(b => b.classList.remove("active"));
+  modeButtons[0].classList.add("active");
+  tabContents.forEach(content => content.classList.remove("active"));
+  document.getElementById("text-tab").classList.add("active");
+  
   draw();
 };
 
@@ -339,95 +468,93 @@ document.getElementById("reset").onclick = function() {
 function draw() {
   ctx.clearRect(0, 0, SIZE, SIZE);
   
-  // Apply border radius
-  if (borderRadius > 0) {
-    const radius = (borderRadius / 100) * SIZE;
-    ctx.beginPath();
-    ctx.moveTo(radius, 0);
-    ctx.lineTo(SIZE - radius, 0);
-    ctx.arcTo(SIZE, 0, SIZE, radius, radius);
-    ctx.lineTo(SIZE, SIZE - radius);
-    ctx.arcTo(SIZE, SIZE, SIZE - radius, SIZE, radius);
-    ctx.lineTo(radius, SIZE);
-    ctx.arcTo(0, SIZE, 0, SIZE - radius, radius);
-    ctx.lineTo(0, radius);
-    ctx.arcTo(0, 0, radius, 0, radius);
-    ctx.closePath();
-    ctx.clip();
-  }
+  // Circular clipping
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(SIZE/2, SIZE/2, SIZE/2 - 5, 0, Math.PI * 2);
+  ctx.clip();
   
-  ctx.fillStyle = "transparent";
+  // White background
+  ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, SIZE, SIZE);
   
   // Draw Photo
   if (img) {
     ctx.save();
-    ctx.filter = `brightness(${brightness})`;
-    const centerX = SIZE / 2 + moveX;
-    const centerY = SIZE / 2 + moveY;
-    ctx.translate(centerX, centerY);
+    
+    ctx.translate(SIZE/2 + moveX, SIZE/2 + moveY);
     ctx.rotate(rotate * Math.PI / 180);
-    const scaledWidth = img.width * zoom;
-    const scaledHeight = img.height * zoom;
-    ctx.drawImage(img, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
+    
+    const w = img.width * zoom;
+    const h = img.height * zoom;
+    
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    
+    ctx.drawImage(img, -w/2, -h/2, w, h);
+    
     ctx.restore();
   }
   
-  // Draw Frame
-  if (frameImg) {
-    ctx.drawImage(frameImg, 0, 0, SIZE, SIZE);
-  }
-  
-  // Draw text
+  // Draw Text
   if (nameText || padText) {
     ctx.save();
-    ctx.fillStyle = textColor;
+    
+    const fontStyleStr = fontStyle === "italic" ? "italic" : "normal";
+    const fontWeightStr = fontWeight === "bold" ? "bold" : "normal";
+    const fontSizeScaled = fontSize * 2;
+    
+    ctx.font = `${fontStyleStr} ${fontWeightStr} ${fontSizeScaled}px ${fontFamily}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     
+    const textPosX = SIZE/2 + (textX * 2);
+    const namePosY = SIZE - 200 + (textY * 2);
+    const padPosY = namePosY + fontSizeScaled * 0.9;
+    
+    // Draw Name with border
     if (nameText) {
-      ctx.font = `bold ${textSize}px 'Poppins', sans-serif`;
-      ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
-      ctx.shadowBlur = 10;
-      ctx.shadowOffsetX = 2;
-      ctx.shadowOffsetY = 2;
+      if (borderSize > 0) {
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = borderSize * 2;
+        ctx.lineJoin = "round";
+        ctx.strokeText(nameText, textPosX, namePosY);
+      }
       
-      ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-      const nameMetrics = ctx.measureText(nameText);
-      const namePadding = 20;
-      ctx.fillRect(
-        SIZE/2 - nameMetrics.width/2 - namePadding, 
-        SIZE - 150 - textSize/2 - 10, 
-        nameMetrics.width + namePadding*2, 
-        textSize + 20
-      );
-      
-      ctx.fillStyle = textColor;
-      ctx.fillText(nameText, SIZE/2, SIZE - 150);
+      ctx.fillStyle = fontColor;
+      ctx.fillText(nameText, textPosX, namePosY);
     }
     
+    // Draw Pad/Title with border
     if (padText) {
-      const padSize = textSize * 0.7;
-      ctx.font = `600 ${padSize}px 'Poppins', sans-serif`;
-      ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
-      ctx.shadowBlur = 8;
-      ctx.shadowOffsetX = 2;
-      ctx.shadowOffsetY = 2;
+      const padFontSize = fontSizeScaled * 0.7;
+      ctx.font = `${fontStyleStr} ${fontWeightStr} ${padFontSize}px ${fontFamily}`;
       
-      ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-      const padMetrics = ctx.measureText(padText);
-      const padPadding = 15;
-      ctx.fillRect(
-        SIZE/2 - padMetrics.width/2 - padPadding, 
-        SIZE - 80 - padSize/2 - 8, 
-        padMetrics.width + padPadding*2, 
-        padSize + 16
-      );
+      if (borderSize > 0) {
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = borderSize * 1.5;
+        ctx.lineJoin = "round";
+        ctx.strokeText(padText, textPosX, padPosY);
+      }
       
-      ctx.fillStyle = textColor;
-      ctx.fillText(padText, SIZE/2, SIZE - 80);
+      ctx.fillStyle = fontColor;
+      ctx.fillText(padText, textPosX, padPosY);
     }
     
+    ctx.restore();
+  }
+  
+  ctx.restore();
+  
+  // Draw Frame on top
+  if (frameImg) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(SIZE/2, SIZE/2, SIZE/2, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(frameImg, 0, 0, SIZE, SIZE);
     ctx.restore();
   }
 }
@@ -435,175 +562,184 @@ function draw() {
 // 10. Download
 document.getElementById("download").onclick = function() {
   if (!img) {
-    showNotification("Please select a photo first", "error");
+    alert("Please select a photo first!");
     return;
   }
   
-  const downloadCanvas = document.createElement("canvas");
-  const downloadCtx = downloadCanvas.getContext("2d");
-  const downloadSize = 2048;
-  downloadCanvas.width = downloadSize;
-  downloadCanvas.height = downloadSize;
-  const scale = downloadSize / SIZE;
-  
-  // Apply border radius
-  if (borderRadius > 0) {
-    const radius = (borderRadius / 100) * downloadSize;
-    downloadCtx.beginPath();
-    downloadCtx.moveTo(radius, 0);
-    downloadCtx.lineTo(downloadSize - radius, 0);
-    downloadCtx.arcTo(downloadSize, 0, downloadSize, radius, radius);
-    downloadCtx.lineTo(downloadSize, downloadSize - radius);
-    downloadCtx.arcTo(downloadSize, downloadSize, downloadSize - radius, downloadSize, radius);
-    downloadCtx.lineTo(radius, downloadSize);
-    downloadCtx.arcTo(0, downloadSize, 0, downloadSize - radius, radius);
-    downloadCtx.lineTo(0, radius);
-    downloadCtx.arcTo(0, 0, radius, 0, radius);
-    downloadCtx.closePath();
-    downloadCtx.clip();
-  }
-  
-  downloadCtx.fillStyle = "transparent";
-  downloadCtx.fillRect(0, 0, downloadSize, downloadSize);
-  
-  // Draw photo
-  if (img) {
-    downloadCtx.save();
-    downloadCtx.filter = `brightness(${brightness})`;
-    const scaledMoveX = moveX * scale;
-    const scaledMoveY = moveY * scale;
-    const centerX = downloadSize / 2 + scaledMoveX;
-    const centerY = downloadSize / 2 + scaledMoveY;
-    downloadCtx.translate(centerX, centerY);
-    downloadCtx.rotate(rotate * Math.PI / 180);
-    const scaledWidth = img.width * zoom * scale;
-    const scaledHeight = img.height * zoom * scale;
-    downloadCtx.drawImage(img, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
-    downloadCtx.restore();
-  }
-  
-  // Draw frame
-  if (frameImg) {
-    downloadCtx.drawImage(frameImg, 0, 0, downloadSize, downloadSize);
-  }
-  
-  // Draw text
-  if (nameText || padText) {
-    downloadCtx.save();
-    downloadCtx.fillStyle = textColor;
-    downloadCtx.textAlign = "center";
-    downloadCtx.textBaseline = "middle";
-    
-    if (nameText) {
-      const scaledTextSize = textSize * scale;
-      downloadCtx.font = `bold ${scaledTextSize}px 'Poppins', sans-serif`;
-      downloadCtx.shadowColor = "rgba(0, 0, 0, 0.8)";
-      downloadCtx.shadowBlur = 15 * scale;
-      downloadCtx.shadowOffsetX = 3 * scale;
-      downloadCtx.shadowOffsetY = 3 * scale;
-      
-      downloadCtx.fillStyle = "rgba(0, 0, 0, 0.4)";
-      const nameMetrics = downloadCtx.measureText(nameText);
-      const namePadding = 25 * scale;
-      downloadCtx.fillRect(
-        downloadSize/2 - nameMetrics.width/2 - namePadding, 
-        downloadSize - 300 * scale - scaledTextSize/2 - 15 * scale, 
-        nameMetrics.width + namePadding*2, 
-        scaledTextSize + 30 * scale
-      );
-      
-      downloadCtx.fillStyle = textColor;
-      downloadCtx.fillText(nameText, downloadSize/2, downloadSize - 300 * scale);
-    }
-    
-    if (padText) {
-      const scaledPadSize = textSize * 0.7 * scale;
-      downloadCtx.font = `600 ${scaledPadSize}px 'Poppins', sans-serif`;
-      downloadCtx.shadowColor = "rgba(0, 0, 0, 0.8)";
-      downloadCtx.shadowBlur = 12 * scale;
-      downloadCtx.shadowOffsetX = 2 * scale;
-      downloadCtx.shadowOffsetY = 2 * scale;
-      
-      downloadCtx.fillStyle = "rgba(0, 0, 0, 0.4)";
-      const padMetrics = downloadCtx.measureText(padText);
-      const padPadding = 20 * scale;
-      downloadCtx.fillRect(
-        downloadSize/2 - padMetrics.width/2 - padPadding, 
-        downloadSize - 160 * scale - scaledPadSize/2 - 12 * scale, 
-        padMetrics.width + padPadding*2, 
-        scaledPadSize + 24 * scale
-      );
-      
-      downloadCtx.fillStyle = textColor;
-      downloadCtx.fillText(padText, downloadSize/2, downloadSize - 160 * scale);
-    }
-    
-    downloadCtx.restore();
-  }
-  
-  const link = document.createElement("a");
-  link.href = downloadCanvas.toDataURL("image/png", 1.0);
-  link.download = "photo-frame-" + Date.now() + ".png";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  
-  showNotification("Image downloaded successfully!");
-};
-
-// 11. Share button
-document.getElementById("share").onclick = function() {
-  if (!img) {
-    showNotification("Please select a photo first", "error");
-    return;
-  }
-  
-  if (navigator.share) {
-    canvas.toBlob(function(blob) {
-      const file = new File([blob], 'photo-frame.png', { type: 'image/png' });
-      
-      navigator.share({
-        files: [file],
-        title: 'My Photo Frame',
-        text: 'Check out this photo frame I created!'
-      })
-      .then(() => showNotification("Image shared successfully!"))
-      .catch(error => {
-        if (error.name !== 'AbortError') {
-          showNotification("Sharing cancelled or failed", "error");
-        }
-      });
-    });
-  } else {
-    showNotification("Sharing is not supported in your browser", "error");
-  }
-};
-
-// 12. Notification function
-function showNotification(message, type = "success") {
-  notificationText.textContent = message;
-  notification.style.borderLeftColor = type === "error" ? "#f5576c" : "#43e97b";
-  notification.style.display = "flex";
+  const originalHTML = this.innerHTML;
+  this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+  this.disabled = true;
   
   setTimeout(() => {
-    notification.style.display = "none";
-  }, 3000);
-}
+    const downloadCanvas = document.createElement("canvas");
+    const downloadCtx = downloadCanvas.getContext("2d");
+    
+    const downloadSize = 2048;
+    downloadCanvas.width = downloadSize;
+    downloadCanvas.height = downloadSize;
+    
+    const scale = downloadSize / SIZE;
+    
+    downloadCtx.save();
+    downloadCtx.beginPath();
+    downloadCtx.arc(downloadSize/2, downloadSize/2, downloadSize/2 - 5, 0, Math.PI * 2);
+    downloadCtx.clip();
+    
+    downloadCtx.fillStyle = "#ffffff";
+    downloadCtx.fillRect(0, 0, downloadSize, downloadSize);
+    
+    if (img) {
+      downloadCtx.save();
+      
+      const scaledMoveX = moveX * scale;
+      const scaledMoveY = moveY * scale;
+      
+      downloadCtx.translate(downloadSize/2 + scaledMoveX, downloadSize/2 + scaledMoveY);
+      downloadCtx.rotate(rotate * Math.PI / 180);
+      
+      const scaledWidth = img.width * zoom * scale;
+      const scaledHeight = img.height * zoom * scale;
+      
+      downloadCtx.drawImage(img, -scaledWidth/2, -scaledHeight/2, scaledWidth, scaledHeight);
+      downloadCtx.restore();
+    }
+    
+    if (nameText || padText) {
+      downloadCtx.save();
+      
+      const fontSizeScaled = fontSize * 2 * scale;
+      const fontStyleStr = fontStyle === "italic" ? "italic" : "normal";
+      const fontWeightStr = fontWeight === "bold" ? "bold" : "normal";
+      
+      downloadCtx.font = `${fontStyleStr} ${fontWeightStr} ${fontSizeScaled}px ${fontFamily}`;
+      downloadCtx.textAlign = "center";
+      downloadCtx.textBaseline = "middle";
+      
+      const textPosX = downloadSize/2 + (textX * 2 * scale);
+      const namePosY = downloadSize - 200 * scale + (textY * 2 * scale);
+      const padPosY = namePosY + fontSizeScaled * 0.9;
+      
+      if (nameText) {
+        if (borderSize > 0) {
+          downloadCtx.strokeStyle = borderColor;
+          downloadCtx.lineWidth = borderSize * 2 * scale;
+          downloadCtx.lineJoin = "round";
+          downloadCtx.strokeText(nameText, textPosX, namePosY);
+        }
+        
+        downloadCtx.fillStyle = fontColor;
+        downloadCtx.fillText(nameText, textPosX, namePosY);
+      }
+      
+      if (padText) {
+        const padFontSize = fontSizeScaled * 0.7;
+        downloadCtx.font = `${fontStyleStr} ${fontWeightStr} ${padFontSize}px ${fontFamily}`;
+        
+        if (borderSize > 0) {
+          downloadCtx.strokeStyle = borderColor;
+          downloadCtx.lineWidth = borderSize * 1.5 * scale;
+          downloadCtx.lineJoin = "round";
+          downloadCtx.strokeText(padText, textPosX, padPosY);
+        }
+        
+        downloadCtx.fillStyle = fontColor;
+        downloadCtx.fillText(padText, textPosX, padPosY);
+      }
+      
+      downloadCtx.restore();
+    }
+    
+    downloadCtx.restore();
+    
+    if (frameImg) {
+      downloadCtx.save();
+      downloadCtx.beginPath();
+      downloadCtx.arc(downloadSize/2, downloadSize/2, downloadSize/2, 0, Math.PI * 2);
+      downloadCtx.clip();
+      downloadCtx.drawImage(frameImg, 0, 0, downloadSize, downloadSize);
+      downloadCtx.restore();
+    }
+    
+    const link = document.createElement("a");
+    link.href = downloadCanvas.toDataURL("image/png", 1.0);
+    link.download = `photo-frame-${Date.now()}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    this.innerHTML = originalHTML;
+    this.disabled = false;
+  }, 300);
+};
 
-// 13. Initialize UI
-textColorPreview.style.backgroundColor = textColor;
-textSizeValue.textContent = textSize;
+// 11. Initialize
+fontColorPreview.style.backgroundColor = fontColor;
+borderColorPreview.style.backgroundColor = borderColor;
 zoomValue.textContent = zoom.toFixed(2);
-rotateValue.textContent = `${rotate}°`;
-moveXValue.textContent = moveX;
-moveYValue.textContent = moveY;
-borderRadiusValue.textContent = `${borderRadius}%`;
-brightnessValue.textContent = brightness.toFixed(2);
+rotateValue.textContent = Math.round(rotate) + '°';
+moveXValue.textContent = Math.round(moveX);
+moveYValue.textContent = Math.round(moveY);
+textXValue.textContent = Math.round(textX);
+textYValue.textContent = Math.round(textY);
+fontSizeValue.textContent = fontSize;
+borderSizeValue.textContent = borderSize + 'px';
 
-// Initial setup
-updateCanvasSize();
+// Initial draw
 draw();
 
-// 14. Update canvas size on resize
-window.addEventListener('resize', updateCanvasSize);
-window.addEventListener('orientationchange', updateCanvasSize);
+// Mouse drag for PC
+let isMouseDown = false;
+canvas.addEventListener('mousedown', function(e) {
+  isMouseDown = true;
+  touchStartX = e.clientX;
+  touchStartY = e.clientY;
+  
+  if (isTouchOnText(e.clientX, e.clientY)) {
+    isDraggingText = true;
+    initialTextX = textX;
+    initialTextY = textY;
+  } else if (img) {
+    isDraggingPhoto = true;
+    initialMoveX = moveX;
+    initialMoveY = moveY;
+  }
+});
+
+canvas.addEventListener('mousemove', function(e) {
+  if (!isMouseDown) return;
+  
+  const deltaX = e.clientX - touchStartX;
+  const deltaY = e.clientY - touchStartY;
+  
+  if (isDraggingPhoto) {
+    moveX = initialMoveX + deltaX * 0.5;
+    moveY = initialMoveY + deltaY * 0.5;
+    
+    moveXSlider.value = moveX;
+    moveYSlider.value = moveY;
+    moveXValue.textContent = Math.round(moveX);
+    moveYValue.textContent = Math.round(moveY);
+  } else if (isDraggingText) {
+    textX = initialTextX + deltaX * 0.2;
+    textY = initialTextY + deltaY * 0.2;
+    
+    textXSlider.value = textX;
+    textYSlider.value = textY;
+    textXValue.textContent = Math.round(textX);
+    textYValue.textContent = Math.round(textY);
+  }
+  
+  draw();
+});
+
+canvas.addEventListener('mouseup', function() {
+  isMouseDown = false;
+  isDraggingPhoto = false;
+  isDraggingText = false;
+});
+
+canvas.addEventListener('mouseleave', function() {
+  isMouseDown = false;
+  isDraggingPhoto = false;
+  isDraggingText = false;
+});
