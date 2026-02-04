@@ -4,7 +4,7 @@ const SIZE = 1024;
 canvas.width = SIZE;
 canvas.height = SIZE;
 
-// Variables with touch support
+// Variables
 let img = null;
 let frameImg = null;
 let zoom = 1, rotate = 0, moveX = 0, moveY = 0;
@@ -20,18 +20,13 @@ let fontFamily = "'Poppins', sans-serif";
 let fontStyle = "normal";
 let fontWeight = "normal";
 
-// Touch gesture variables
+// Touch/Mouse variables
 let isDraggingPhoto = false;
 let isDraggingText = false;
-let touchStartX = 0;
-let touchStartY = 0;
-let initialMoveX = 0;
-let initialMoveY = 0;
-let initialTextX = 0;
-let initialTextY = 0;
-let initialZoom = 1;
-let initialDistance = 0;
-let initialRotate = 0;
+let lastTouchX = 0;
+let lastTouchY = 0;
+let lastPinchDistance = 0;
+let lastRotateAngle = 0;
 let isPinching = false;
 let isRotating = false;
 
@@ -51,14 +46,14 @@ const moveYValue = document.getElementById("moveYValue");
 const fontSizeSlider = document.getElementById("fontSize");
 const fontSizeValue = document.getElementById("fontSizeValue");
 const fontColorPicker = document.getElementById("fontColor");
-const fontColorPreview = document.getElementById("fontColorPreview");
+const fontColorValue = document.getElementById("fontColorValue");
 const borderColorPicker = document.getElementById("borderColor");
-const borderColorPreview = document.getElementById("borderColorPreview");
+const borderColorValue = document.getElementById("borderColorValue");
 const borderSizeSlider = document.getElementById("borderSize");
 const borderSizeValue = document.getElementById("borderSizeValue");
 const fontFamilySelect = document.getElementById("fontFamily");
 const styleButtons = document.querySelectorAll(".style-btn");
-const modeButtons = document.querySelectorAll(".mode-btn");
+const tabButtons = document.querySelectorAll(".tab-btn");
 const tabContents = document.querySelectorAll(".tab-content");
 
 // Create default circular frame
@@ -112,77 +107,77 @@ function isTouchOnText(touchX, touchY) {
   const canvasX = (touchX - rect.left) * scaleX;
   const canvasY = (touchY - rect.top) * scaleY;
   
+  ctx.save();
+  ctx.font = `${fontStyle} ${fontWeight} ${fontSize * 2}px ${fontFamily}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  
+  const textPosX = SIZE/2 + (textX * 2);
+  const namePosY = SIZE - 200 + (textY * 2);
+  const padPosY = namePosY + fontSize * 2 * 0.9;
+  
+  let isOnText = false;
+  
   // Check name text
   if (nameText) {
-    ctx.save();
-    ctx.font = `${fontStyle} ${fontWeight} ${fontSize * 2}px ${fontFamily}`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+    const metrics = ctx.measureText(nameText);
+    const textWidth = metrics.width;
+    const textHeight = fontSize * 2;
     
-    const nameWidth = ctx.measureText(nameText).width;
-    const nameHeight = fontSize * 2;
-    const namePosX = SIZE/2 + (textX * 2);
-    const namePosY = SIZE - 200 + (textY * 2);
-    
-    if (canvasX >= namePosX - nameWidth/2 && canvasX <= namePosX + nameWidth/2 &&
-        canvasY >= namePosY - nameHeight/2 && canvasY <= namePosY + nameHeight/2) {
-      ctx.restore();
-      return true;
+    if (canvasX >= textPosX - textWidth/2 && canvasX <= textPosX + textWidth/2 &&
+        canvasY >= namePosY - textHeight/2 && canvasY <= namePosY + textHeight/2) {
+      isOnText = true;
     }
-    ctx.restore();
   }
   
   // Check pad text
-  if (padText) {
-    ctx.save();
+  if (!isOnText && padText) {
     const padFontSize = fontSize * 2 * 0.7;
     ctx.font = `${fontStyle} ${fontWeight} ${padFontSize}px ${fontFamily}`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+    const metrics = ctx.measureText(padText);
+    const textWidth = metrics.width;
+    const textHeight = padFontSize;
     
-    const padWidth = ctx.measureText(padText).width;
-    const padHeight = padFontSize;
-    const padPosX = SIZE/2 + (textX * 2);
-    const padPosY = (SIZE - 200 + (textY * 2)) + fontSize * 2 * 0.9;
-    
-    if (canvasX >= padPosX - padWidth/2 && canvasX <= padPosX + padWidth/2 &&
-        canvasY >= padPosY - padHeight/2 && canvasY <= padPosY + padHeight/2) {
-      ctx.restore();
-      return true;
+    if (canvasX >= textPosX - textWidth/2 && canvasX <= textPosX + textWidth/2 &&
+        canvasY >= padPosY - textHeight/2 && canvasY <= padPosY + textHeight/2) {
+      isOnText = true;
     }
-    ctx.restore();
   }
   
-  return false;
+  ctx.restore();
+  return isOnText;
 }
 
-// Touch event handlers
+// Get distance between two touches
+function getTouchDistance(touch1, touch2) {
+  const dx = touch1.clientX - touch2.clientX;
+  const dy = touch1.clientY - touch2.clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+// Get angle between two touches
+function getTouchAngle(touch1, touch2) {
+  return Math.atan2(touch2.clientY - touch1.clientY, touch2.clientX - touch1.clientX);
+}
+
+// Touch events
 canvas.addEventListener('touchstart', function(e) {
   e.preventDefault();
+  
   if (e.touches.length === 1) {
     const touch = e.touches[0];
-    touchStartX = touch.clientX;
-    touchStartY = touch.clientY;
+    lastTouchX = touch.clientX;
+    lastTouchY = touch.clientY;
     
     if (isTouchOnText(touch.clientX, touch.clientY)) {
       isDraggingText = true;
-      initialTextX = textX;
-      initialTextY = textY;
     } else if (img) {
       isDraggingPhoto = true;
-      initialMoveX = moveX;
-      initialMoveY = moveY;
     }
-  } else if (e.touches.length === 2) {
+  } else if (e.touches.length === 2 && img) {
     isPinching = true;
-    initialZoom = zoom;
-    initialDistance = getTouchDistance(e.touches);
-    
-    // Calculate initial rotation
-    const touch1 = e.touches[0];
-    const touch2 = e.touches[1];
-    const angle = Math.atan2(touch2.clientY - touch1.clientY, touch2.clientX - touch1.clientX);
-    initialRotate = angle * (180 / Math.PI);
+    lastPinchDistance = getTouchDistance(e.touches[0], e.touches[1]);
+    lastRotateAngle = getTouchAngle(e.touches[0], e.touches[1]);
   }
 });
 
@@ -191,20 +186,20 @@ canvas.addEventListener('touchmove', function(e) {
   
   if (e.touches.length === 1 && (isDraggingPhoto || isDraggingText)) {
     const touch = e.touches[0];
-    const deltaX = touch.clientX - touchStartX;
-    const deltaY = touch.clientY - touchStartY;
+    const deltaX = touch.clientX - lastTouchX;
+    const deltaY = touch.clientY - lastTouchY;
     
     if (isDraggingPhoto) {
-      moveX = initialMoveX + deltaX * 0.5;
-      moveY = initialMoveY + deltaY * 0.5;
+      moveX += deltaX;
+      moveY += deltaY;
       
       moveXSlider.value = moveX;
       moveYSlider.value = moveY;
       moveXValue.textContent = Math.round(moveX);
       moveYValue.textContent = Math.round(moveY);
     } else if (isDraggingText) {
-      textX = initialTextX + deltaX * 0.2;
-      textY = initialTextY + deltaY * 0.2;
+      textX += deltaX * 0.3;
+      textY += deltaY * 0.3;
       
       textXSlider.value = textX;
       textYSlider.value = textY;
@@ -212,26 +207,28 @@ canvas.addEventListener('touchmove', function(e) {
       textYValue.textContent = Math.round(textY);
     }
     
+    lastTouchX = touch.clientX;
+    lastTouchY = touch.clientY;
     draw();
-  } else if (e.touches.length === 2 && isPinching) {
-    const currentDistance = getTouchDistance(e.touches);
-    const zoomDelta = (currentDistance - initialDistance) * 0.01;
-    zoom = Math.max(0.5, Math.min(3, initialZoom + zoomDelta));
+  } else if (e.touches.length === 2 && isPinching && img) {
+    const currentDistance = getTouchDistance(e.touches[0], e.touches[1]);
+    const currentAngle = getTouchAngle(e.touches[0], e.touches[1]);
+    
+    // Zoom
+    const zoomDelta = (currentDistance - lastPinchDistance) * 0.005;
+    zoom = Math.max(0.5, Math.min(3, zoom + zoomDelta));
+    
+    // Rotate
+    const rotateDelta = (currentAngle - lastRotateAngle) * (180 / Math.PI);
+    rotate += rotateDelta;
     
     zoomSlider.value = zoom;
-    zoomValue.textContent = zoom.toFixed(2);
-    
-    // Rotation
-    const touch1 = e.touches[0];
-    const touch2 = e.touches[1];
-    const currentAngle = Math.atan2(touch2.clientY - touch1.clientY, touch2.clientX - touch1.clientX) * (180 / Math.PI);
-    const rotateDelta = currentAngle - initialRotate;
-    rotate = (rotate + rotateDelta) % 360;
-    
     rotateSlider.value = rotate;
+    zoomValue.textContent = zoom.toFixed(2);
     rotateValue.textContent = Math.round(rotate) + '°';
-    initialRotate = currentAngle;
     
+    lastPinchDistance = currentDistance;
+    lastRotateAngle = currentAngle;
     draw();
   }
 });
@@ -242,18 +239,62 @@ canvas.addEventListener('touchend', function(e) {
   isPinching = false;
 });
 
-function getTouchDistance(touches) {
-  const dx = touches[0].clientX - touches[1].clientX;
-  const dy = touches[0].clientY - touches[1].clientY;
-  return Math.sqrt(dx * dx + dy * dy);
-}
+// Mouse events for PC
+canvas.addEventListener('mousedown', function(e) {
+  lastTouchX = e.clientX;
+  lastTouchY = e.clientY;
+  
+  if (isTouchOnText(e.clientX, e.clientY)) {
+    isDraggingText = true;
+  } else if (img) {
+    isDraggingPhoto = true;
+  }
+  
+  canvas.style.cursor = 'grabbing';
+});
 
-// Update value displays
-function updateValueDisplay(element, value, format = (v) => v) {
-  element.textContent = format(value);
-}
+canvas.addEventListener('mousemove', function(e) {
+  if (!isDraggingPhoto && !isDraggingText) return;
+  
+  const deltaX = e.clientX - lastTouchX;
+  const deltaY = e.clientY - lastTouchY;
+  
+  if (isDraggingPhoto) {
+    moveX += deltaX * 0.5;
+    moveY += deltaY * 0.5;
+    
+    moveXSlider.value = moveX;
+    moveYSlider.value = moveY;
+    moveXValue.textContent = Math.round(moveX);
+    moveYValue.textContent = Math.round(moveY);
+  } else if (isDraggingText) {
+    textX += deltaX * 0.2;
+    textY += deltaY * 0.2;
+    
+    textXSlider.value = textX;
+    textYSlider.value = textY;
+    textXValue.textContent = Math.round(textX);
+    textYValue.textContent = Math.round(textY);
+  }
+  
+  lastTouchX = e.clientX;
+  lastTouchY = e.clientY;
+  draw();
+});
 
-// 1. Upload Photo
+canvas.addEventListener('mouseup', function() {
+  isDraggingPhoto = false;
+  isDraggingText = false;
+  canvas.style.cursor = 'default';
+});
+
+canvas.addEventListener('mouseleave', function() {
+  isDraggingPhoto = false;
+  isDraggingText = false;
+  canvas.style.cursor = 'default';
+});
+
+// Upload Photo
 document.getElementById("upload").onchange = function(e) {
   if (e.target.files && e.target.files[0]) {
     const file = e.target.files[0];
@@ -276,7 +317,7 @@ document.getElementById("upload").onchange = function(e) {
   }
 };
 
-// 2. Upload Frame
+// Upload Frame
 document.getElementById("uploadFrame").onchange = function(e) {
   if (e.target.files && e.target.files[0]) {
     const file = e.target.files[0];
@@ -291,19 +332,19 @@ document.getElementById("uploadFrame").onchange = function(e) {
   }
 };
 
-// 3. Name Input
+// Name Input
 document.getElementById("nameText").oninput = function() {
   nameText = this.value.trim();
   draw();
 };
 
-// 4. Pad Input
+// Title Input
 document.getElementById("padText").oninput = function() {
   padText = this.value.trim();
   draw();
 };
 
-// 5. Text Position Controls
+// Slider events
 textXSlider.oninput = function() {
   textX = parseFloat(this.value);
   textXValue.textContent = Math.round(textX);
@@ -316,7 +357,6 @@ textYSlider.oninput = function() {
   draw();
 };
 
-// 6. Photo Controls
 zoomSlider.oninput = function() {
   zoom = parseFloat(this.value);
   zoomValue.textContent = zoom.toFixed(2);
@@ -341,7 +381,7 @@ moveYSlider.oninput = function() {
   draw();
 };
 
-// 7. Font Controls
+// Font controls
 fontSizeSlider.oninput = function() {
   fontSize = parseInt(this.value);
   fontSizeValue.textContent = fontSize;
@@ -350,19 +390,19 @@ fontSizeSlider.oninput = function() {
 
 fontColorPicker.oninput = function() {
   fontColor = this.value;
-  fontColorPreview.style.backgroundColor = fontColor;
+  fontColorValue.textContent = fontColor.toUpperCase();
   draw();
 };
 
 borderColorPicker.oninput = function() {
   borderColor = this.value;
-  borderColorPreview.style.backgroundColor = borderColor;
+  borderColorValue.textContent = borderColor.toUpperCase();
   draw();
 };
 
 borderSizeSlider.oninput = function() {
   borderSize = parseInt(this.value);
-  borderSizeValue.textContent = borderSize + 'px';
+  borderSizeValue.textContent = borderSize;
   draw();
 };
 
@@ -371,7 +411,7 @@ fontFamilySelect.onchange = function() {
   draw();
 };
 
-// Style Buttons
+// Style buttons
 styleButtons.forEach(btn => {
   btn.addEventListener("click", function() {
     this.classList.toggle("active");
@@ -387,26 +427,25 @@ styleButtons.forEach(btn => {
   });
 });
 
-// Mode Switching
-modeButtons.forEach(btn => {
+// Tab switching
+tabButtons.forEach(btn => {
   btn.addEventListener("click", function() {
-    const mode = this.getAttribute("data-mode");
+    const tabId = this.getAttribute("data-tab");
     
-    modeButtons.forEach(b => b.classList.remove("active"));
+    tabButtons.forEach(b => b.classList.remove("active"));
     this.classList.add("active");
     
     tabContents.forEach(content => {
       content.classList.remove("active");
-      if (content.id === `${mode}-tab`) {
+      if (content.id === `${tabId}-tab`) {
         content.classList.add("active");
       }
     });
   });
 });
 
-// 8. Reset Function
+// Reset function
 document.getElementById("reset").onclick = function() {
-  // Reset all values
   zoom = 1;
   rotate = 0;
   moveX = 0;
@@ -423,7 +462,6 @@ document.getElementById("reset").onclick = function() {
   nameText = "";
   padText = "";
   
-  // Update sliders
   zoomSlider.value = zoom;
   rotateSlider.value = rotate;
   moveXSlider.value = moveX;
@@ -436,7 +474,6 @@ document.getElementById("reset").onclick = function() {
   borderSizeSlider.value = borderSize;
   fontFamilySelect.value = fontFamily;
   
-  // Update displays
   zoomValue.textContent = zoom.toFixed(2);
   rotateValue.textContent = Math.round(rotate) + '°';
   moveXValue.textContent = Math.round(moveX);
@@ -444,27 +481,19 @@ document.getElementById("reset").onclick = function() {
   textXValue.textContent = Math.round(textX);
   textYValue.textContent = Math.round(textY);
   fontSizeValue.textContent = fontSize;
-  borderSizeValue.textContent = borderSize + 'px';
-  fontColorPreview.style.backgroundColor = fontColor;
-  borderColorPreview.style.backgroundColor = borderColor;
+  borderSizeValue.textContent = borderSize;
+  fontColorValue.textContent = fontColor.toUpperCase();
+  borderColorValue.textContent = borderColor.toUpperCase();
   
-  // Clear inputs
   document.getElementById("nameText").value = "";
   document.getElementById("padText").value = "";
   
-  // Reset style buttons
   styleButtons.forEach(btn => btn.classList.remove("active"));
-  
-  // Switch to text tab
-  modeButtons.forEach(b => b.classList.remove("active"));
-  modeButtons[0].classList.add("active");
-  tabContents.forEach(content => content.classList.remove("active"));
-  document.getElementById("text-tab").classList.add("active");
   
   draw();
 };
 
-// 9. DRAW FUNCTION
+// Draw function
 function draw() {
   ctx.clearRect(0, 0, SIZE, SIZE);
   
@@ -490,7 +519,6 @@ function draw() {
     
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
-    
     ctx.drawImage(img, -w/2, -h/2, w, h);
     
     ctx.restore();
@@ -512,7 +540,7 @@ function draw() {
     const namePosY = SIZE - 200 + (textY * 2);
     const padPosY = namePosY + fontSizeScaled * 0.9;
     
-    // Draw Name with border
+    // Draw Name
     if (nameText) {
       if (borderSize > 0) {
         ctx.strokeStyle = borderColor;
@@ -525,7 +553,7 @@ function draw() {
       ctx.fillText(nameText, textPosX, namePosY);
     }
     
-    // Draw Pad/Title with border
+    // Draw Title
     if (padText) {
       const padFontSize = fontSizeScaled * 0.7;
       ctx.font = `${fontStyleStr} ${fontWeightStr} ${padFontSize}px ${fontFamily}`;
@@ -546,7 +574,7 @@ function draw() {
   
   ctx.restore();
   
-  // Draw Frame on top
+  // Draw Frame
   if (frameImg) {
     ctx.save();
     ctx.beginPath();
@@ -559,7 +587,7 @@ function draw() {
   }
 }
 
-// 10. Download
+// Download function
 document.getElementById("download").onclick = function() {
   if (!img) {
     alert("Please select a photo first!");
@@ -567,7 +595,7 @@ document.getElementById("download").onclick = function() {
   }
   
   const originalHTML = this.innerHTML;
-  this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+  this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
   this.disabled = true;
   
   setTimeout(() => {
@@ -672,9 +700,9 @@ document.getElementById("download").onclick = function() {
   }, 300);
 };
 
-// 11. Initialize
-fontColorPreview.style.backgroundColor = fontColor;
-borderColorPreview.style.backgroundColor = borderColor;
+// Initialize
+fontColorValue.textContent = fontColor.toUpperCase();
+borderColorValue.textContent = borderColor.toUpperCase();
 zoomValue.textContent = zoom.toFixed(2);
 rotateValue.textContent = Math.round(rotate) + '°';
 moveXValue.textContent = Math.round(moveX);
@@ -682,64 +710,7 @@ moveYValue.textContent = Math.round(moveY);
 textXValue.textContent = Math.round(textX);
 textYValue.textContent = Math.round(textY);
 fontSizeValue.textContent = fontSize;
-borderSizeValue.textContent = borderSize + 'px';
+borderSizeValue.textContent = borderSize;
 
 // Initial draw
 draw();
-
-// Mouse drag for PC
-let isMouseDown = false;
-canvas.addEventListener('mousedown', function(e) {
-  isMouseDown = true;
-  touchStartX = e.clientX;
-  touchStartY = e.clientY;
-  
-  if (isTouchOnText(e.clientX, e.clientY)) {
-    isDraggingText = true;
-    initialTextX = textX;
-    initialTextY = textY;
-  } else if (img) {
-    isDraggingPhoto = true;
-    initialMoveX = moveX;
-    initialMoveY = moveY;
-  }
-});
-
-canvas.addEventListener('mousemove', function(e) {
-  if (!isMouseDown) return;
-  
-  const deltaX = e.clientX - touchStartX;
-  const deltaY = e.clientY - touchStartY;
-  
-  if (isDraggingPhoto) {
-    moveX = initialMoveX + deltaX * 0.5;
-    moveY = initialMoveY + deltaY * 0.5;
-    
-    moveXSlider.value = moveX;
-    moveYSlider.value = moveY;
-    moveXValue.textContent = Math.round(moveX);
-    moveYValue.textContent = Math.round(moveY);
-  } else if (isDraggingText) {
-    textX = initialTextX + deltaX * 0.2;
-    textY = initialTextY + deltaY * 0.2;
-    
-    textXSlider.value = textX;
-    textYSlider.value = textY;
-    textXValue.textContent = Math.round(textX);
-    textYValue.textContent = Math.round(textY);
-  }
-  
-  draw();
-});
-
-canvas.addEventListener('mouseup', function() {
-  isMouseDown = false;
-  isDraggingPhoto = false;
-  isDraggingText = false;
-});
-
-canvas.addEventListener('mouseleave', function() {
-  isMouseDown = false;
-  isDraggingPhoto = false;
-  isDraggingText = false;
-});
